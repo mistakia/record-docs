@@ -1,0 +1,22 @@
+{
+  "name": "record-docs",
+  "version": "0.0.1",
+  "description": "Documentation for the Record application & platform",
+  "author": "mistakia",
+  "license": "MIT",
+  "scripts": {
+    "start": "parcel src/index.jade",
+    "build": "rm -rf dist && node build.js && parcel build src/index.jade",
+    "deploy": "$(npm bin)/ipfs-deploy dist/index.html"
+  },
+  "devDependencies": {
+    "parcel-bundler": "^1.12.4",
+    "pug": "^2.0.4",
+    "stylus": "^0.54.7"
+  },
+  "dependencies": {
+    "ipfs-deploy": "^7.14.0",
+    "marked": "^1.1.0",
+    "parcel-plugin-inliner": "^1.0.14"
+  }
+}
