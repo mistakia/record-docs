@@ -4,7 +4,7 @@
 Record is an immutable distributed system for managing a music collection.
 
 ### How does it work?
-As a distributed network, Record passes the data from application to application. Therefore, it doesn’t rely on any one person or company, rather it’s spread out and made accessible by anyone running the application. Most importantly, it will continue to work if the people behind the project abandon it or decide to shut it down and you are the only person using it.
+As a distributed network, Record passes the data from application to application. Therefore, it does not rely on any one person or company, rather it is spread out and made accessible by anyone running the application. Most importantly, it will continue to work if the people behind the project abandon it or decide to shut it down and you are the only person using it.
 
 Record is built on the [IPFS](https://ipfs.io/) & [OrbitDB](https://orbitdb.org/) protocol, thus it inherits all of their qualities (i.e. immutability, censorship resistance, distributed and content deduplication).
 
@@ -16,7 +16,7 @@ To start, the main focus is to ease the pain of managing & enjoying a large digi
 
 Next, the focus shifts to cultivating and supporting the content creators who make these collections possible. First, by allowing them to distribute to anyone, forever, and eventually, by helping them focus on their art and get rewarded for their creativity, cutting out all intermediaries. We have a lot more to say on this later.
 
-Finally, we want to bring back & elevate curators. We’re referring to the radio DJs and bloggers of the past that either succumbed to the music industry or fatigue. These all go hand-in-hand. When you make it easier to manage a digital music collection, that spawns curators who then discover and elevate content creators.
+Finally, we want to bring back & elevate curators. We are referring to the radio DJs and bloggers of the past that either succumbed to the music industry or fatigue. These all go hand-in-hand. When you make it easier to manage a digital music collection, that spawns curators who then discover and elevate content creators.
 
 ### How is this different from X?
 Record aims to be fully distributed where all functionality is self-sustained. There have been and will be similar projects but they tend to have some elements where the functionality is not fully self-sustained. Avoiding federation and resisting any crutches either technically or practically reduce fully distributed functionality.
@@ -39,7 +39,7 @@ This is an experiment. Passion for the cause, appetite for problems and patience
 ## FAQs
 
 ### Is this illegal? What about copyright infringement?
-No. Like many things, it depends on how you use it. There’s currently no mechanism to detect or prevent copyright infringement on the network. We have many plans to address copyright infringement like a distributed copyright registration system that allows users to observe copyright and detect infringement. However, there will never be a way to prevent someone from committing copyright infringement. That decision is ultimately left up to each person. Our goal is to limit infringement to only those who willfully want to commit it.
+No. Like many things, it depends on how you use it. There is currently no mechanism to detect or prevent copyright infringement on the network. We have many plans to address copyright infringement like a distributed copyright registration system that allows users to observe copyright and detect infringement. However, there will never be a way to prevent someone from committing copyright infringement. That decision is ultimately left up to each person. Our goal is to limit infringement to only those who willfully want to commit it.
 
 ### What happens when I link a library?
 You will replicate and maintain a copy of the metadata, not the actual audio, of all the tracks that are in that library while receiving any future updates. Libraries you link to are made available for others to discover.
