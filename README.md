@@ -6,7 +6,7 @@ Record is an immutable distributed system for managing a music collection.
 ### How does it work?
 As a distributed network, Record passes the data from application to application. Therefore, it does not rely on any one person or company, rather it is spread out and made accessible by anyone running the application. Most importantly, it will continue to work if the people behind the project abandon it or decide to shut it down and you are the only person using it.
 
-Record is built on the [IPFS](https://ipfs.io/) & [OrbitDB](https://orbitdb.org/) protocol, thus it inherits all of their qualities (i.e. immutability, censorship resistance, distributed and content deduplication).
+Record is built on the [IPFS](https://ipfs.io/) & [OrbitDB](https://orbitdb.org/) protocol, thus it inherits all of their qualities (i.e. immutable, censorship resistant, distributed and content deduplication).
 
 ### Why?
 In short, to achieve immutability & interoperability. Anyone who manages a large music collection knows the pains of keeping it forever and navigating the disjointed music space.
@@ -24,7 +24,7 @@ Record aims to be fully distributed where all functionality is self-sustained. T
 [work in progress]
 
 ### Who is this for?
-This is an experiment. Passion for the cause, appetite for problems and patience/stamina to weather a long experimental phase.
+This is an experiment and is in the early phases of development. In other words, it is not ready for use and has a long road ahead. Until it is stable, it is most suitable for those who have an appetite for problems and a desire to shape the solutions.
 
 ### Getting Started
 1. Download the [desktop app](https://github.com/mistakia/record-app/releases)
