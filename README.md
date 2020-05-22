@@ -2,6 +2,17 @@
 
 ### What is Record?
 Record is an immutable distributed system for managing a music collection.
+- Supports: mp3, mp4, m4a/aac, flac, wav, ogg, 3gpp, aiff
+- Audio file tag support via [Music Metadata](https://github.com/Borewit/music-metadata)
+- Audio fingerprinting via [Chromaprint](https://acoustid.org/chromaprint)
+- Listening history w/ counter and timestamps
+- Tagging system for organization
+- Play / Shuffle search results & organizational tags
+- Import files from the local file system
+- Import from various web-based sources: Youtube, Soundcloud, Bandcamp, etc
+  - [Record Chrome extension](https://github.com/mistakia/record-chrome-extension)
+- Content deduplication
+- Play queue
 
 ### How does it work?
 As a distributed network, Record passes the data from application to application. Therefore, it does not rely on any one person or company, rather it is spread out and made accessible by anyone running the application. Most importantly, it will continue to work if the people behind the project abandon it or decide to shut it down and you are the only person using it.
@@ -29,12 +40,18 @@ This is an experiment and is in the early phases of development. In other words,
 ### Getting Started
 1. Download the [desktop app](https://github.com/mistakia/record-app/releases)
 
-[work in progress]
-
 ### Getting Involved
 - Report bugs & enhancements on [github](https://github.com/mistakia/record-app/issues).
 - Ask questions via [@ipfsmusic](https://twitter.com/ipfsmusic).
 - Contribute code & documentation.
+
+## Roadmap
+Check out [the roadmap](https://github.com/mistakia/record-app/projects/1) to view planned features.
+- Metadata cleaning / import using: discogs, musicbrainz, last.fm, allmusic, beatport, streaming services, etc
+- Media server (MPD, Sonos, Plex, Kodi, Emby)
+- Audio and music analysis (Aubio, Essentia)
+- Audio Scrobbling (last.fm, libre.fm, listenbrainz)
+- Trustless timestamping / distributed copyrighting & distribution (OpenTimestamps, Ethereum, Nano)
 
 ## FAQs
 
@@ -105,7 +122,7 @@ A computer running IPFS.
 ### Record Peer
 A computer running the Record application or an instance of [record-node](https://github.com/mistakia/record-node). A peer can have many libraries. A record peer is also always an IPFS peer but not vice-versa.
 
-## Guiding Principles
-1. Distributed — self-contained and independent.
-2. Open — free flow of information, permissionless, community governed.
-3.
+## Principles
+1. Distributed - self-contained and independent.
+2. Open - free flow of information, permissionless, community governed.
+3. [work in progress]
