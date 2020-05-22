@@ -19,9 +19,9 @@ Next, the focus shifts to cultivating and supporting the content creators who ma
 Finally, we want to bring back & elevate curators. We are referring to the radio DJs and bloggers of the past that either succumbed to the music industry or fatigue. These all go hand-in-hand. When you make it easier to manage a digital music collection, that spawns curators who then discover and elevate content creators.
 
 ### How is this different from X?
-Record aims to be fully distributed where all functionality is self-sustained. There have been and will be similar projects but they tend to have some elements where the functionality is not fully self-sustained. Avoiding federation and resisting any crutches either technically or practically reduce fully distributed functionality.
+Record aims to be fully distributed where all functionality is self-contained. There have been and will be similar projects but they tend to have some elements where the functionality is not fully self-contained and reliant on some external services. Our goal is to avoid federation and resist any crutches, either technically or practically, that reduce fully distributed functionality.
 
-[work in progress]
+[work in progress - need examples]
 
 ### Who is this for?
 This is an experiment and is in the early phases of development. In other words, it is not ready for use and has a long road ahead. Until it is stable, it is most suitable for those who have an appetite for problems and a desire to shape the solutions.
@@ -85,7 +85,7 @@ Users choose which libraries to persist by linking them to their library. Additi
 ### NAT traversal
 In many situations, users will be behind a router and will need to enable UPnP or nat-pmp in order to connect to others. The best way to do this is to google your specific router brand for instructions on how to enable them.
 
-## Protocol Design
+## Design
 [work in progress]
 
 ## Glossary
@@ -93,11 +93,19 @@ In many situations, users will be behind a router and will need to enable UPnP o
 ### Identity
 A public / private key pair. Users can have multiple identities.
 
+### Library / Log
+A collection of tracks and links to other libraries. Each Library has at least one assoicated Identity. Currently, there is no global registry of libraries. Discovery occurs by examining the social graph, by out-of-band sharing, or peer discovery on the network.
+
+### Track
+An audio file with its accompanying metadata form a Track. Tracks belong to a Library and are identified by their [audio fingerprint](https://acoustid.org/chromaprint). Two tracks in two different libraries with the same audio fingerprint will have the same id and will be treated as the same. In the future, the audio fingerprint can be used to determine the similarity of any two tracks.
+
 ### IPFS Peer
 A computer running IPFS.
 
-### Library
-A collection of tracks and links to other libraries. Currently, there is no global registry of libraries. Discovery occurs by examining the social graph, by out-of-band sharing, or peer discovery on the network.
-
 ### Record Peer
 A computer running the Record application or an instance of [record-node](https://github.com/mistakia/record-node). A peer can have many libraries. A record peer is also always an IPFS peer but not vice-versa.
+
+## Guiding Principles
+1. Distributed — self-contained and independent.
+2. Open — free flow of information, permissionless, community governed.
+3.
