@@ -23,7 +23,7 @@ Record is built on the [IPFS](https://ipfs.io/) & [OrbitDB](https://orbitdb.org/
 In short, to achieve immutability & interoperability. Anyone who manages a large music collection knows the pains of keeping it forever and navigating the disjointed music space.
 
 ### Goals?
-To start, the main focus is to ease the pain of managing & enjoying a large digital music collection.
+To prove the viability of a distributed system to address the pain of managing & enjoying a large digital music collection.
 
 Next, the focus shifts to cultivating and supporting the content creators who make these collections possible. First, by allowing them to distribute to anyone, forever, and eventually, by helping them focus on their art and get rewarded for their creativity, cutting out all intermediaries. We have a lot more to say on this later.
 
@@ -35,7 +35,7 @@ Record aims to be fully distributed where all functionality is self-contained. T
 [work in progress - need examples]
 
 ### Who is this for?
-This is an experiment and is in the early phases of development. In other words, it is not ready for use and has a long road ahead. Until it is stable, it is most suitable for those who have an appetite for problems and a desire to shape the solutions.
+This remains an unstable experiment despite being in development since 2015 and conceived in the early 2010s, just like the greater distributed web ecosystem. In other words, it is not ready for use and has a long road ahead. Until it is stable, it is most suitable for those who have an appetite for problems and a desire to shape the solutions.
 
 ### Getting Started
 1. Download the [desktop app](https://github.com/mistakia/record-app/releases)
