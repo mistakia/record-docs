@@ -25,9 +25,9 @@ In short, to achieve immutability & interoperability of audio metadata and files
 ### Goals?
 To experiment with the viability of an open protocol and a fully distributed system to address the problems of centralized music silos. Anyone who manages a large music collection knows the pains of keeping it forever and navigating the disjointed music ecosystem.
 
-Next, the focus shifts to cultivating and supporting the content creators who make these collections possible. First, by allowing them to distribute to anyone, forever, and eventually, by helping them focus on their art and get rewarded for their creativity, cutting out all intermediaries.
+To cultivate and support content creators by allowing them to distribute to anyone, forever, and get rewarded for their creativity, cutting out all intermediaries.
 
-Finally, we want to bring back & elevate curators. We are referring to the era of radio DJs and bloggers that either succumbed to the music industry or fatigue. We believe that if you make it easier to manage a digital music collection, that spawns curators who then discover and elevate content creators.
+To bring back & elevate curators - referring to the era of radio DJs and bloggers that either succumbed to the music industry or fatigue. Making it easier to manage a digital music collection will spawns curators who then discover and elevate content creators.
 
 ### How is this different from X?
 Record aims to be fully distributed where all functionality is self-contained in each application (i.e. a "full" node). There have been and will be similar projects but many tend to have some elements where the functionality is not self-contained and too much is reliant on external services. Our goal is to avoid federation and resist any crutches, either technically or practically, that reduce fully distributed functionality.
@@ -35,7 +35,7 @@ Record aims to be fully distributed where all functionality is self-contained in
 - [beets](https://github.com/beetbox/beets) [needs documentation]
 - [tomahawk player](https://github.com/tomahawk-player/tomahawk) [needs documentation]
 - Ex.fm (deprecated)
-- [Medichain](https://github.com/mediachain/mediachain) [needs documentation]
+- [Mediachain](https://github.com/mediachain/mediachain) [needs documentation]
 - [Open Music Initiative](https://github.com/omi/RAIDAR) [needs documentation]
 - [Ujo](https://github.com/ConsenSysMesh/ujo-backend) [needs documentation]
 - [Audius](https://github.com/AudiusProject) [needs documentation]
@@ -187,7 +187,7 @@ The library manifest contains a name for the library along with the hash to an a
 #### Entry Payload Content - Track
 An audio file with its accompanying metadata form a Track. Tracks belong to a Library and are identified by their [audio fingerprint](https://acoustid.org/chromaprint). Two tracks in two different libraries with the same audio fingerprint will have the same id and will be treated as the same. In the future, the audio fingerprint can be used to determine the similarity of any two tracks.
 
-The `content` of a Record entry is the CID of the following object. Any changes to the following object will result in a different CID. However, two exact audio files with different metadata fields will have the same audio fingerprint and Record Entry `id`.
+The `content` property of an Entry payload is the CID of the following object. Any changes to the following object will result in a different CID. However, two exact audio files will have the same audio fingerprint and entry payload `id` / `key`.
 ```JavaScript
 {
   hash: 'QmQNBMWZexMA2EEhsc7BMoqnjWRqf5irXk6osNnh7oqNjS', // IPFS hash of audio file
