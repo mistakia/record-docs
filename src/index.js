@@ -2,6 +2,7 @@ import marked from 'marked'
 import readme from './readme' // generated from ../build.js
 
 const isDev = process.env.NODE_ENV === 'development'
+console.log(`isDev: ${isDev}`)
 const BASE = 'https://api.github.com/repos/mistakia/record-docs/contents/'
 const checkStatus = (response) => {
   if (response.status >= 200 && response.status < 300) {

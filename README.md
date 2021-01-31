@@ -1,3 +1,7 @@
+<p align="center">
+   <img src="https://github.com/mistakia/record-app/raw/master/resources/icon.png" alt="Record Logo" width="150" />
+</p>
+
 ## Introduction
 
 ### What is Record?
