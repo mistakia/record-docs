@@ -10,6 +10,7 @@ yarn-error.log
 
 # App specific
 #
+.env
 .cache
 dist
 src/readme.js

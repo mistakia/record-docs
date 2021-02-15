@@ -7,7 +7,7 @@
   "scripts": {
     "start": "parcel src/index.jade",
     "build": "rm -rf dist && node build.js && parcel build src/index.jade",
-    "deploy": "$(npm bin)/ipfs-deploy dist/index.html"
+    "deploy": "$(npm bin)/ipfs-deploy dist/index.html -d cloudflare"
   },
   "devDependencies": {
     "parcel-bundler": "^1.12.4",

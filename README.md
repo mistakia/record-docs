@@ -5,7 +5,7 @@
 ## Introduction
 
 ### What is Record?
-Record is an immutable distributed system for audio files. It can be used for managing a music collection (and much more).
+Record is an immutable distributed system for audio files. It can be used for managing a personal music collection and potentially powering the digital music ecosystem (distribution, discovery, etc).
 - Supports: mp3, mp4, m4a/aac, flac, wav, ogg, 3gpp, aiff
 - Audio file tag support via [Music Metadata](https://github.com/Borewit/music-metadata)
 - Audio fingerprinting via [Chromaprint](https://acoustid.org/chromaprint)
@@ -18,10 +18,9 @@ Record is an immutable distributed system for audio files. It can be used for ma
 - Content deduplication
 - Play queue
 
-### How does it work?
-As a distributed network, Record passes the data from application to application. Therefore, it does not rely on any one entity, rather it is spread out and made accessible by anyone running the application. Users only keep the data they are interested in. Each application is a "full node" designed to continue working even if the project is abandoned and you are the only person using it.
+As a distributed network, Record passes data from application to application. Therefore, it does not rely on any one entity, rather it is spread out and made accessible by anyone running the application. Users only keep the data they are interested in and make it available for others. Each application is a "full node" designed to continue working even if the project is abandoned and you are the only person using it.
 
-Record is built using the [InterPlanetary File System (IPFS)](https://ipfs.io/) & [OrbitDB](https://orbitdb.org/) / [IPFS-Log](https://github.com/orbitdb/ipfs-log) protocol, thus it inherits all of their qualities (i.e. immutable, censorship resistant, distributed and content deduplication).
+Record is built using only the [InterPlanetary File System (IPFS)](https://ipfs.io/) & [OrbitDB](https://orbitdb.org/) / [IPFS-Log](https://github.com/orbitdb/ipfs-log) protocols, inheriting all of their qualities (i.e. immutable, censorship resistant, distributed and content deduplication). At the moment, Record is not reliant on any consensus driven distributed systems (i.e. cryptocurrencies). In the future, one may be used for data anchoring and value transfer (i.e. payments) if they meet the core principles of the project.
 
 ### Why?
 In short, to achieve immutability & interoperability of audio metadata and files.
@@ -60,32 +59,6 @@ Check out [the roadmap](https://github.com/mistakia/record-app/projects/1) to vi
 - Audio Scrobbling (last.fm, libre.fm, listenbrainz)
 - Trustless timestamping / distributed copyrighting & distribution ([OpenTimestamps](https://opentimestamps.org/), [Nano](https://github.com/nanocurrency/nano-node), etc)
 
-## FAQs
-
-### Is this illegal? What about copyright infringement?
-No. Like many things, it depends on how you use it. There is currently no mechanism to detect or prevent copyright infringement on the network. We have many ideas on how to address copyright infringement like a distributed copyright registration system that allows users to observe copyright and detect infringement. However, there will never be a way to prevent someone from committing copyright infringement that wants to do so. That decision is ultimately left up to each person. Our goal is to limit infringement to only those who willfully want to commit it.
-
-### What happens when I link a library?
-You will replicate and maintain a copy of the metadata, not the actual audio, of all the tracks that are in that library while receiving any future updates. Libraries you link to are made available for others to discover.
-
-### What happens when I unlink a library?
-You will stop receiving any updates to that library and its metadata will eventually be removed from your computer, along with any audio files that exclusively belonged to that library. To further clarify, if you saved a track from another library and then unlink it, you will maintain that track.
-
-### What happens when I try to play a track?
-You are searching your local computer and network for the audio file. If found, it is played. If it belongs to a library that you have linked, the audio file will be kept, otherwise it will eventually be removed from your computer.
-
-### What happens when I star a track?
-You are adding this track to your library and maintaining the audio file on your computer.
-
-### Will there be data on my computer that I have not asked for?
-Never. You only get data that you request and you will only keep data that you have chosen to maintain.
-
-### How do I search for a track?
-There is no network wide search mechanism and we have no plans on making one. You can only search for tracks within the libraries you are connected to.
-
-### How do I find a library?
-Each library has a unique address that can be shared.
-
 ## Guides
 ### Getting Started
 1. Download the ~~desktop app~~
@@ -118,16 +91,16 @@ A public / private key pair. Users can have multiple identities.
 ### Library
 A collection of tracks and links to other libraries. Each Library has at least one assoicated Identity. Currently, there is no global registry of libraries. Discovery occurs by examining the social graph, by out-of-band sharing, or peer discovery on the network.
 
-More specifically, a library is an immutable log (see IPFS Log).
+More specifically, a library is an immutable operation-based [conflict-free replicated data structure](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type) resembling a [directed acyclic graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph). Each Library has a Manifest and an Access Controller, specifying which keys/signatures are accepted.
 
 #### Library Address
-The library address is an IPFS hash of the log\'s manifest.
+The library address is an IPFS hash of the log\'s manifest. Thus each address is unique to a manifest.
 ```JavaScript
 /orbitdb/zdpuAqeuT5BQnyXMTnvL5xWHVBUXSs4HMxgpbVgErnd8Doi6p/record
 ```
 
 #### Library Manifest
-The library manifest contains a name for the library along with the hash to an access controller, which defines who has the ability to write to the log. There are multiple types of [access controllers](https://github.com/orbitdb/orbit-db-access-controllers/tree/master/src) (i.e. OrbitDB, IPFS, Ethereum, custom).
+The library manifest contains a name for the library along with the hash to an access controller, which specifies who has the ability to modify the Library. There are multiple types of [access controllers](https://github.com/orbitdb/orbit-db-access-controllers/tree/master/src) (i.e. OrbitDB, IPFS, Ethereum, custom).
 
 ```JavaScript
 {
@@ -138,6 +111,7 @@ The library manifest contains a name for the library along with the hash to an a
 ```
 
 #### Library Access Controller (IPFS)
+Specifies public keys to be used to validate signatures of entries
 ```JavaScript
 {
   write: [
@@ -147,6 +121,7 @@ The library manifest contains a name for the library along with the hash to an a
 ```
 
 #### Entry
+Each entry is a signed operation (`PUT` or `DEL`) modifying the state of the Library that references previous entries in the Library.
 ```JavaScript
 {
   hash: 'zdpuAnctNUahQ2hRBeVSt7B3ymMKZ1qiHcGZUS8vABbwQ9LBs', // Entry hash
@@ -174,6 +149,7 @@ The library manifest contains a name for the library along with the hash to an a
 ```
 
 #### Entry Payload
+There are three types of entry payloads, conducting two operations (`PUT` or `DEL`), with a content addressable pointer to the data. In the case of a `track` entry, the `content` is a content addressable pointer to the metadata of the audio file. Within the metadata is another content addressable pointer to the audio data.
 ```JavaScript
 {
   op: 'PUT', // PUT or DEL
@@ -189,12 +165,14 @@ The library manifest contains a name for the library along with the hash to an a
 ```
 
 #### Entry Payload Content - Track
-An audio file with its accompanying metadata form a Track. Tracks belong to a Library and are identified by their [audio fingerprint](https://acoustid.org/chromaprint). Two tracks in two different libraries with the same audio fingerprint will have the same id and will be treated as the same. In the future, the audio fingerprint can be used to determine the similarity of any two tracks.
+The metadata of an audio file with a content addressable pointer ot the audio data. Tracks are identified by their [audio fingerprint](https://acoustid.org/chromaprint). Two tracks in two different libraries with the same audio fingerprint will have the same id and will be treated as the same. In the future, the audio fingerprint can be used to determine the similarity of any two tracks.
+
+Audio files are processed by separating the metadata from the audio data, so that the audio data alone is content addressable and unique on the entire network.
 
 The `content` property of an Entry payload is the CID of the following object. Any changes to the following object will result in a different CID. However, two exact audio files will have the same audio fingerprint and entry payload `id` / `key`.
 ```JavaScript
 {
-  hash: 'QmQNBMWZexMA2EEhsc7BMoqnjWRqf5irXk6osNnh7oqNjS', // IPFS hash of audio file
+  hash: 'QmQNBMWZexMA2EEhsc7BMoqnjWRqf5irXk6osNnh7oqNjS', // IPFS hash of audio data
   size: 15476630,
   tags: {
     disk: [Object],
@@ -241,6 +219,32 @@ The `content` property of an Entry payload is the CID of the following object. A
   location: 'test world'
 }
 ```
+
+## FAQs
+
+### Is this illegal? What about copyright infringement?
+Like many things, it depends on how you use it. There is currently no mechanism to detect or prevent copyright infringement on the network. We have many ideas on how to address copyright infringement like a distributed copyright registration system that allows users to observe copyright and detect infringement. However, there will never be a way to prevent someone from committing copyright infringement that wants to do so. That decision is ultimately left up to each person. Our goal is to limit infringement to only those who willfully want to commit it.
+
+### What happens when I link a library?
+You will replicate and maintain a copy of the metadata, not the actual audio, of all the tracks that are in that library while receiving any future updates. Libraries you link to are made available for others to discover.
+
+### What happens when I unlink a library?
+You will stop receiving any updates to that library and its metadata will eventually be removed from your computer, along with any audio files that exclusively belonged to that library. To further clarify, if you saved a track from another library and then unlink it, you will maintain that track.
+
+### What happens when I try to play a track?
+You are searching your local computer and network for the audio file. If found, it is played. If it belongs to a library that you have linked, the audio file will be kept, otherwise it will eventually be removed from your computer.
+
+### What happens when I star a track?
+You are adding this track to your library and maintaining the audio file on your computer.
+
+### Will there be data on my computer that I have not asked for?
+Never. You only get data that you request and you will only keep data that you have chosen to maintain.
+
+### How do I search for a track?
+There is no network wide search mechanism and we have no plans on making one. You can only search for tracks within the libraries you are connected to.
+
+### How do I find a library?
+Each library has a unique address that can be shared.
 
 ## Core Principles
 1. Distributed - self-contained and independent.
