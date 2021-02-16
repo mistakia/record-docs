@@ -47,7 +47,8 @@ Record aims to be fully distributed where all functionality is self-contained in
 Like many projects in the distributed web ecosystem, this remains an unstable experiment despite on and off development since 2015. In other words, it is not ready for general use. Until it is stable, it is most suitable for those who have an appetite for problems and a desire to shape the solutions.
 
 ### Getting Involved
-- Report bugs & enhancements on [github](https://github.com/mistakia/record-app/issues).
+- Report bugs on [github](https://github.com/mistakia/record-app/issues).
+- Ask questions, share ideas & enhancements on [github](https://github.com/mistakia/record-app/discussions).
 - Ask questions via [@ipfsrecord](https://twitter.com/ipfsrecord).
 - Contribute ideas, code & documentation.
 
