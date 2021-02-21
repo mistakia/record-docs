@@ -86,7 +86,23 @@ code
       color rgb(0,0,0)
       border-color rgb(0,0,0)
 
+.screenshot
+  a
+    border-bottom none !important
+  img
+    width 100%
+  &:hover
+    img
+      opacity 55%
+  p
+    font-size 10px
+
 @media (max-width: 850px)
   #menu
     position relative
     top 0
+
+@media (min-width: 850px)
+  .screenshot
+    margin-left -40px
+    margin-right -40px

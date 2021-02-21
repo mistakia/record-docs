@@ -22,6 +22,15 @@ As a distributed network, Record passes data from application to application. Th
 
 Record is built using only the [InterPlanetary File System (IPFS)](https://ipfs.io/) & [OrbitDB](https://orbitdb.org/) / [IPFS-Log](https://github.com/orbitdb/ipfs-log) protocols, inheriting all of their qualities (i.e. immutable, censorship resistant, distributed and content deduplication). At the moment, Record is not reliant on any consensus driven distributed systems (i.e. cryptocurrencies). In the future, one may be used for data anchoring and value transfer (i.e. payments) if they meet the core principles of the project.
 
+<div class="screenshot">
+   <a href="https://youtu.be/1cmxiwPBv7A" target="_blank">
+       <img src="https://github.com/mistakia/record-app/raw/master/resources/images/screenshot.png" />
+   </a>
+   <p align="center">
+      Record (v0.0.1-alpha) demo and walkthrough
+   </p>
+</div>
+
 ### Why?
 In short, to achieve immutability & interoperability of audio metadata and files.
 
@@ -90,7 +99,7 @@ A computer running the Record application or an instance of [record-node](https:
 A public / private key pair. Users can have multiple identities.
 
 ### Library
-A collection of tracks and links to other libraries. Each Library has at least one assoicated Identity. Currently, there is no global registry of libraries. Discovery occurs by examining the social graph, by out-of-band sharing, or peer discovery on the network.
+A collection of audio files and links to other libraries. Each Library has at least one assoicated Identity. Currently, there is no global registry of libraries. Discovery occurs by examining the social graph, by out-of-band sharing, or peer discovery on the network.
 
 More specifically, a library is an immutable operation-based [conflict-free replicated data structure](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type) resembling a [directed acyclic graph](https://en.wikipedia.org/wiki/Directed_acyclic_graph). Each Library has a Manifest and an Access Controller, specifying which keys/signatures are accepted.
 
@@ -166,7 +175,7 @@ There are three types of entry payloads, conducting two operations (`PUT` or `DE
 ```
 
 #### Entry Payload Content - Track
-The metadata of an audio file with a content addressable pointer ot the audio data. Tracks are identified by their [audio fingerprint](https://acoustid.org/chromaprint). Two tracks in two different libraries with the same audio fingerprint will have the same id and will be treated as the same. In the future, the audio fingerprint can be used to determine the similarity of any two tracks.
+The metadata of an audio file with a content addressable pointer ot the audio data. Audio files are identified by their [audio fingerprint](https://acoustid.org/chromaprint). Two audio files in two different libraries with the same audio fingerprint will have the same id and will be treated as the same. In the future, the audio fingerprint can be used to determine the similarity of any two audio files.
 
 Audio files are processed by separating the metadata from the audio data, so that the audio data alone is content addressable and unique on the entire network.
 
@@ -227,7 +236,7 @@ The `content` property of an Entry payload is the CID of the following object. A
 Like many things, it depends on how you use it. There is currently no mechanism to detect or prevent copyright infringement on the network. We have many ideas on how to address copyright infringement like a distributed copyright registration system that allows users to observe copyright and detect infringement. However, there will never be a way to prevent someone from committing copyright infringement that wants to do so. That decision is ultimately left up to each person. Our goal is to limit infringement to only those who willfully want to commit it.
 
 ### What happens when I link a library?
-You will replicate and maintain a copy of the metadata, not the actual audio, of all the tracks that are in that library while receiving any future updates. Libraries you link to are made available for others to discover.
+You will replicate and maintain a copy of the metadata, not the actual audio, of all the audio files that are in that library while receiving any future updates. Libraries you link to are made available for others to discover.
 
 ### What happens when I unlink a library?
 You will stop receiving any updates to that library and its metadata will eventually be removed from your computer, along with any audio files that exclusively belonged to that library. To further clarify, if you saved a track from another library and then unlink it, you will maintain that track.
@@ -242,7 +251,7 @@ You are adding this track to your library and maintaining the audio file on your
 Never. You only get data that you request and you will only keep data that you have chosen to maintain.
 
 ### How do I search for a track?
-There is no network wide search mechanism and we have no plans on making one. You can only search for tracks within the libraries you are connected to.
+There is no network wide search mechanism and there are no plans on making one until there's a way it can be accomplished in a distributed manner. You can only search for audio files within the libraries you are connected to. In the future there can be integrations to search various centralized music silos (soundcloud, youtube, etc).
 
 ### How do I find a library?
 Each library has a unique address that can be shared.
