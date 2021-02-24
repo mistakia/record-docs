@@ -31,10 +31,9 @@ Record is built using only the [InterPlanetary File System (IPFS)](https://ipfs.
    </p>
 </div>
 
-### Why?
+### Goals?
 In short, to achieve immutability & interoperability of audio metadata and files.
 
-### Goals?
 To experiment with the viability of an open protocol and a fully distributed system to address the problems of centralized music silos. Anyone who manages a large music collection knows the pains of keeping it forever and navigating the disjointed music ecosystem.
 
 To cultivate and support content creators by allowing them to distribute to anyone, forever, and get rewarded for their creativity, cutting out all intermediaries.
@@ -42,10 +41,10 @@ To cultivate and support content creators by allowing them to distribute to anyo
 To bring back & elevate curators - referring to the era of radio DJs and bloggers that either succumbed to the music industry or fatigue. Making it easier to manage a digital music collection will spawns curators who then discover and elevate content creators.
 
 ### How is this different from X?
-Record aims to be fully distributed where all functionality is self-contained in each application (i.e. a "full" node). There have been and will be similar projects but many tend to have some elements where the functionality is not self-contained and too much is reliant on external services. Our goal is to avoid federation and resist any crutches, either technically or practically, that reduce fully distributed functionality.
+Record aims to be fully distributed where all functionality is self-contained in each application (i.e. a "full" node). There have been and will be similar projects. Most tend to differ by having some elements where the functionality is not self-contained and too much is reliant on external services. Our goal is to avoid federation and resist any crutches, either technically or practically, that reduce fully distributed functionality.
 
-- [beets](https://github.com/beetbox/beets) [needs documentation]
-- [tomahawk player](https://github.com/tomahawk-player/tomahawk) [needs documentation]
+- [beets](https://github.com/beetbox/beets) (A great library management system - lacks interoperability)
+- [tomahawk player](https://github.com/tomahawk-player/tomahawk) (Cross-platform music player - abandoned)
 - Ex.fm (deprecated)
 - [Mediachain](https://github.com/mediachain/mediachain) [needs documentation]
 - [Open Music Initiative](https://github.com/omi/RAIDAR) [needs documentation]
