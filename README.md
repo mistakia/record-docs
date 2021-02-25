@@ -38,7 +38,7 @@ To experiment with the viability of an open protocol and a fully distributed sys
 
 To cultivate and support content creators by allowing them to distribute to anyone, forever, and get rewarded for their creativity, cutting out all intermediaries.
 
-To bring back & elevate curators - referring to the era of radio DJs and bloggers that either succumbed to the music industry or fatigue. Making it easier to manage a digital music collection will spawns curators who then discover and elevate content creators.
+To bring back & elevate curators - referring to the era of radio DJs and bloggers that either succumbed to the music industry or fatigue. Making it easier to manage a digital music collection spawns curators who then discover and elevate content creators.
 
 ### How is this different from X?
 Record aims to be fully distributed where all functionality is self-contained in each application (i.e. a "full" node). There have been and will be similar projects. Most tend to differ by having some elements where the functionality is not self-contained and too much is reliant on external services. Our goal is to avoid federation and resist any crutches, either technically or practically, that reduce fully distributed functionality.
