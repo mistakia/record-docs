@@ -1,7 +1,7 @@
 {
   "name": "record-docs",
   "version": "0.0.1",
-  "description": "Documentation for the Record application & platform",
+  "description": "Documentation for Record: a distributed system for audio files",
   "author": "mistakia",
   "license": "MIT",
   "scripts": {

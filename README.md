@@ -50,6 +50,7 @@ Record aims to be fully distributed where all functionality is self-contained in
 - [Open Music Initiative](https://github.com/omi/RAIDAR) [needs documentation]
 - [Ujo](https://github.com/ConsenSysMesh/ujo-backend) [needs documentation]
 - [Audius](https://github.com/AudiusProject) [needs documentation]
+- [Funkwhale)(https://dev.funkwhale.audio/funkwhale/funkwhale) [needs documentation]
 
 ### Status
 Like many projects in the distributed web ecosystem, this remains an unstable experiment despite on and off development since 2015. In other words, it is not ready for general use. Until it is stable, it is most suitable for those who have an appetite for problems and a desire to shape the solutions.
