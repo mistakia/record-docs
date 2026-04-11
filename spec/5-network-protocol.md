@@ -49,7 +49,7 @@ bytes `52 45 43 4f 52 44`).
 
 **Per-library topics.** Replication topics (§5.4) use the library
 address string verbatim as the topic name. Library names SHOULD
-be kept short (§3.8 already constrains the character set). An
+be kept short (§3.7 already constrains the character set). An
 implementation that cannot subscribe to a topic longer than its
 pubsub runtime supports MUST surface an error rather than
 silently truncating or hashing the topic name.
@@ -98,13 +98,12 @@ About payload object (§2.6). The shape is:
       }
     }
   },
-  next:     <string[]>,
-  refs:     <string[]>,
-  v:        2,
-  clock:    { id: <string>, time: <number> },
-  key:      <string>,
-  identity: <IdentityObject>,   // §3.5
-  sig:      <string>
+  next:    <string[]>,
+  refs:    <string[]>,
+  v:       2,
+  clock:   { id: <string>, time: <number> },
+  key:     <string>,
+  sig:     <string>
 }
 ```
 
@@ -223,7 +222,7 @@ operation and MUST be bounded:
    indicates either a bug or a hostile peer.
 2. **Fan-out cap.** A single entry's `next` and `refs` arrays
    MUST each contain at most 256 entries. An entry with more
-   MUST be rejected at signature-verification time (§3.6.4) and
+   MUST be rejected at signature-verification time (§3.5.4) and
    MUST NOT enqueue its children.
 3. **Concurrency bound.** The peer MUST bound the number of
    in-flight fetches per library. The bound MUST be finite and
@@ -289,7 +288,7 @@ entries that already landed locally.
 **Unlink.** When a library is unlinked the implementation
 SHOULD pause the library, unsubscribe from its pubsub topic,
 discard any unresolved-fetch state, and remove unique content
-as described in §4.7.
+as described in §4.6.
 
 ### 5.4.5 Network partition and unreachable peers
 
@@ -310,17 +309,20 @@ cannot currently be fetched from the content network.
   consumers purely because of fetch failures. Removal is an
   explicit user or API action (§5.4.4 unlink).
 
-## 5.5 Content network configuration
+## 5.5 Network profile
 
-An implementation's underlying content network MUST be
-configured such that compliant peers can exchange blocks.
+The protocol is defined against the abstract fabric requirements
+of §5.1 and the CID formats of §2.1. This section defines the
+single concrete profile currently standardised. Conformant peers
+MUST implement this profile. Future versions MAY define
+additional profiles; inter-profile interoperability is not
+guaranteed and is left to bridging implementations.
 
-**Required.**
+### 5.5.1 libp2p profile
+
+Peers running on the libp2p stack MUST be configured as follows:
 
 - **Pubsub router**: gossipsub.
-- **CID formats**: dag-cbor payloads with sha3-512 hashes,
-  dag-cbor signed log entries with sha2-256 hashes, base58btc
-  string encoding in protocol fields.
 - **Private network pre-shared key**: peers MUST isolate Record
   traffic from public content-addressed networks using the
   following PSK:

@@ -124,12 +124,7 @@ same CID, enabling cross-peer deduplication at the audio layer.
 
 ## 6.3 Metadata extraction
 
-### 6.3.1 Tool
-
-Implementations SHOULD use a metadata-extraction library that
-produces the common and format field sets described below.
-
-### 6.3.2 Persisted tags
+### 6.3.1 Persisted tags
 
 The `track.content.tags` object MUST contain:
 
@@ -145,7 +140,7 @@ source file):
 Additional common-tag fields from the extraction library MAY be
 included as passthrough.
 
-### 6.3.3 Persisted format fields
+### 6.3.2 Persisted format fields
 
 The `track.content.audio` object SHOULD include these fields, with
 the specified types when present (any field MAY be omitted or
@@ -173,7 +168,7 @@ correct representation for unknown is omission or `null`. The
 in v1; portable implementations SHOULD normalise them for display
 client-side rather than assume cross-implementation equality.
 
-### 6.3.4 Artwork
+### 6.3.3 Artwork
 
 Album art embedded in the source file SHOULD be extracted into
 individual CIDs and referenced from `track.content.artwork[]`. Each
@@ -181,7 +176,7 @@ artwork element MUST be a CID. Order SHOULD be preserved from the
 source file. If the source file has no artwork, `artwork` MUST be an
 empty array (not missing).
 
-### 6.3.5 Exclusion from tag-stripped audio
+### 6.3.4 Exclusion from tag-stripped audio
 
 Implementations MUST ensure artwork is NOT embedded in the
 tag-stripped audio file. The tag-stripping operation in §6.2.2 (audio-stream-only copy)

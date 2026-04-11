@@ -2,11 +2,11 @@
 
 A Record library is an append-only, signed, content-addressed log of
 operations. This section specifies the log structure, entry format,
-merge semantics, and memory-scalability requirements.
+and merge semantics.
 
 **Library vs. query database.** In this specification the term
 "library" refers exclusively to the signed, content-addressed oplog
-(the DAG of entries described in §4.1). A "query database" (§4.8) is
+(the DAG of entries described in §4.1). A "query database" (§4.7) is
 an optional, implementation-local derived index populated by replaying
 the oplog; it is not part of the protocol and is invisible to peers.
 Two conformant peers replicate libraries, not query databases. Any
@@ -21,33 +21,31 @@ graph (DAG) via `next` and `refs` pointers.
 
 ### 4.1.1 Persisted entry shape
 
-On the wire and at rest, each signed entry is a dag-cbor object with:
+On the wire and at rest, each signed entry is an 8-field dag-cbor
+object:
 
 ```
 {
-  hash:     <CID>,              // hash of the entry itself (set after write)
-  id:       <string>,           // library id (the library this entry belongs to)
-  payload:  <operation>,        // §2.8 PUT/DEL operation
-  next:     <hash[]>,           // parent entry hashes (heads at time of creation)
-  refs:     <hash[]>,           // additional reference hashes for traversal
-  v:        2,                  // entry schema version
-  clock:    { id, time },       // Lamport clock
-  key:      <pubkey_hex>,       // writer's identity public key
-  identity: <IdentityObject>,   // §3.5
-  sig:      <string>            // signature per §3.4
+  id:      <string>,            // library id (the library this entry belongs to)
+  payload: <operation>,         // §2.8 PUT/DEL operation
+  next:    <hash[]>,            // parent entry hashes (heads at time of creation)
+  refs:    <hash[]>,            // additional reference hashes for traversal
+  v:       2,                   // entry schema version
+  clock:   { id, time },        // Lamport clock
+  key:     <pubkey_hex>,        // writer's compressed secp256k1 pubkey
+  sig:     <string>             // signature per §3.4
 }
 ```
 
-IPLD link fields MUST be `["next", "refs"]`. The signed log entry `v`
-field MUST be 2. Earlier versions MAY be accepted for
-backward-compatible reads but MUST NOT be produced by new writes.
+IPLD link fields MUST be `["next", "refs"]`. The signed log entry
+`v` field MUST be 2.
 
 ### 4.1.2 Entry hash
 
-The entry hash is the CID of the signed dag-cbor entry object,
-including `key`, `identity`, and `sig` fields. It is computed during
-the entry create step and then assigned to `entry.hash` for local
-reference.
+The entry hash is the CID of the 8-field signed dag-cbor object
+above. It is computed after signing and assigned locally to
+`entry.hash` for reference; `hash` is not itself part of the
+stored bytes.
 
 ## 4.2 Lamport clock
 
@@ -150,10 +148,10 @@ complete set of known entries for that key; partial recomputation
 
 When merging a remote log into the local log:
 
-1. For each new entry, verify its signature (§3.4.4), identity object
-   (§3.5.2), and AC membership (§3.6.4). Any entry that fails
-   verification MUST be dropped and MUST NOT appear in the merged
-   oplog state observed by step 4.
+1. For each new entry, verify its signature (§3.4.4) and AC
+   membership (§3.5.4). Any entry that fails verification MUST be
+   dropped and MUST NOT appear in the merged oplog state observed
+   by step 4.
 2. Insert the surviving entries into the local oplog structure. The
    insertion MUST be idempotent: an entry whose `entry.hash` already
    exists locally is a no-op, not a duplicate insertion.
@@ -184,21 +182,12 @@ are permitted only if the implementation guarantees this equivalence
 (for example, by recomputing state for each touched key after each
 batch).
 
-## 4.6 Memory scalability
-
-An implementation MUST be able to operate on logs whose full entry
-set does not fit in memory. The in-memory representation of
-"entries present in the log" MUST be decoupled from "full entry
-objects loaded into memory", so that traversal and existence
-checks can run against an oplog whose entry bodies are fetched on
-demand.
-
-## 4.7 Per-library pinning
+## 4.6 Per-library pinning
 
 An implementation SHOULD pin all of the following content-addressed
 objects for each opened library:
 
-1. The library manifest (AC chain object 1, §3.6.1).
+1. The library manifest (AC chain object 1, §3.5.1).
 2. The AC wrapper (chain object 2).
 3. The AC inner write-list (chain object 3).
 4. The signed log entry object (the dag-cbor block whose CID is
@@ -224,13 +213,10 @@ hash the library uniquely held (not shared with another still-linked
 library), and every content CID/audio/artwork that is not referenced by
 another still-linked library.
 
-## 4.8 Dual-indexing pattern (SHOULD)
+## 4.7 Query database derivability
 
-Implementations with non-trivial query requirements SHOULD adopt
-a dual-indexing strategy: the signed append-only log is the
-authoritative source of state, and a local query database
-projects that state for fast reads. Every cell in the query
-database MUST be derivable from the oplog alone; rebuilding the
-query database from scratch MUST yield the same state as
-incremental maintenance. The query database schema is an
-implementation choice and is not visible to peers.
+Any local query database an implementation maintains MUST be
+fully derivable from the oplog: rebuilding from scratch MUST
+yield the same state as incremental maintenance. The query
+database schema is not part of the protocol and is invisible
+to peers.

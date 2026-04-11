@@ -37,7 +37,7 @@ See §6.2.4 for audio CID derivation.
 Every Track, Log, and About record-entry envelope (i.e. every entry
 in a `recordstore`-type library) uses the following shape. This is the
 application-level payload wrapper, distinct from the signed log entry
-(§4.1) that wraps it in the append-only DAG — see §1.3 for the
+(§4.1) that wraps it in the append-only DAG — see §1.4 for the
 layering diagram.
 
 ```
@@ -308,7 +308,7 @@ Requirements:
 - A received entry whose `payload` is a `DEL` with `value.type` equal
   to `"about"`, `"listen"`, or any value other than `"track"` or
   `"log"` MUST be rejected at the append-verification step
-  (§3.6.4 / §4.5) and MUST NOT be added to the local oplog.
+  (§3.5.4 / §4.5) and MUST NOT be added to the local oplog.
 - In a `listens`-type library (§2.7) the only valid operation shape is
   a listen-entry write; `DEL` operations MUST be rejected by both the
   writer (on local append) and any replicating peer (on remote merge).

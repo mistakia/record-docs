@@ -15,7 +15,85 @@ This document specifies the wire format, identity model, network
 behaviour, and content-processing rules required for interoperable
 implementations.
 
-## 1.2 Conformance
+## 1.2 Goals and philosophy
+
+Every normative requirement in this document is justified against
+this section. A requirement that assumes a goal not listed here is
+a defect in this document.
+
+### 1.2.1 Purpose
+
+Record is a protocol for decentralised audio libraries:
+content-addressed, peer-replicated, self-hosted. A peer runs an
+implementation and maintains at least one library of its own
+audio. Peers publish libraries and link to other libraries,
+assembling a federated view without a central server, index, or
+account system. Every peer is a full node.
+
+### 1.2.2 Invariants
+
+- **Audio identity is intrinsic to the audio.** Track identity is
+  derived from a fingerprint of the decoded audio, not from
+  metadata or from the publishing peer (§6.1).
+- **Audio bytes deduplicate across peers.** Tag stripping is
+  deterministic, so two peers ingesting the same recording arrive
+  at the same CID (§6.2).
+- **Libraries have stable provenance.** The access controller is
+  fixed at creation; rotating writers means a new library
+  (§3.5, §4.3).
+- **History is evidence.** Libraries are signed, append-only
+  CRDTs. Peers converge without coordination and every entry is
+  verifiable from its signature (§3.4, §4.4).
+- **Playback history belongs to the listener.** Listen entries
+  live in a library owned by the listener and cannot be signed or
+  retracted by anyone else (§2.7, §4.2).
+- **Every persisted object is content-addressed.** Equal content
+  yields equal addresses on every peer (§2.1).
+
+### 1.2.3 Non-goals
+
+- Global consensus or canonical network state.
+- Anonymity. Entries are signed with long-lived keys and
+  announced on a public overlay.
+- Auditable listen counts. Listen entries are self-reported and
+  trivially forgeable; the protocol provides no basis for
+  royalty accounting or proof of playback.
+- Distributed moderation or takedown. Peers decide what they
+  replicate; tombstones are advisory.
+- Economic incentives. No tokens, payments, or reputation scores.
+- In-place key rotation. A compromised writer key ends the
+  library's useful life.
+- Metadata consensus. Peers do not have to agree on tags,
+  descriptions, or artwork for a given track.
+- Network-wide search or a global library registry.
+
+### 1.2.4 Trade-offs
+
+- Deterministic dedup requires pinning tag-stripping and
+  fingerprinting tools and algorithms (§6). Silent drift breaks
+  cross-peer deduplication.
+- Fixed access controllers preclude in-place recovery from key
+  compromise.
+- CRDT tombstones hide content locally but cannot erase it from
+  peers that already replicated it. "Delete" is local; "forget"
+  is not a primitive.
+- Per-peer metadata choice means the `envelope.content` CID for
+  the same track may differ between peers (§2.10).
+- Every entry carries a signature and identity reference. The
+  protocol prefers this overhead over trusting any peer's server.
+
+### 1.2.5 Runtime agnosticism
+
+The protocol targets any content-addressed storage and pubsub
+fabric providing: immutable CID-addressed blocks with a canonical
+binary encoding (§2.1); block exchange by CID; and a string-topic
+publish-subscribe channel (§5). Specific libraries, daemons, or
+network stacks are implementation choices, not protocol
+dependencies. Conformance is judged solely against this document;
+behaviour that depends on a specific runtime's quirks is
+non-conforming unless this document also requires it.
+
+## 1.3 Conformance
 
 Requirement levels follow RFC 2119 / RFC 8174:
 
@@ -28,7 +106,7 @@ Requirement levels follow RFC 2119 / RFC 8174:
 A "Record peer" is any process that speaks the Record protocol. An
 "implementation" is any software conforming to this specification.
 
-## 1.3 Terminology
+## 1.4 Terminology
 
 **Peer**: a process running a Record implementation. A peer holds
 zero or more libraries.
@@ -58,7 +136,7 @@ library creation and is not mutable in this version.
 carrying `{id, timestamp, v: 1, type, content}`. The envelope
 describes a track, log link, or about record. Its `content` field
 is a CID pointing to the dag-cbor payload stored in the content
-network. "Entry" used alone in sections 2, 6, and 7 refers to this
+network. "Entry" used alone in sections 2 and 6 refers to this
 structure.
 
 **Signed log entry**: the append-only log object (§4.1) that wraps
@@ -93,8 +171,8 @@ that records a playback event.
 **Track ID**: the protocol-level identity of an audio track.
 Computed as `sha256(chromaprint_fingerprint)` (§6).
 
-**Node ID**: the protocol-level identity of a peer. Computed as
-`sha256(public_key_hex_lowercase)` (§3).
+**Node ID**: the protocol-level identity of a peer. Equals the
+writer's compressed secp256k1 public key hex (§3).
 
 **Chromaprint fingerprint**: the string output of `fpcalc` for an
 audio file. Protocol-bound — see §6.
@@ -103,7 +181,7 @@ audio file. Protocol-bound — see §6.
 album art, and encoder tags removed via a deterministic, lossless
 operation (§6).
 
-## 1.4 System overview
+## 1.5 System overview
 
 A Record peer performs these activities:
 
@@ -118,7 +196,7 @@ A Record peer performs these activities:
 4. **Query**: serve local audio, metadata, and history to consumer
    software.
 
-## 1.5 Document organisation
+## 1.6 Document organisation
 
 - §1 Overview
 - §2 Data model — entry envelope, payload schemas, content addressing
@@ -127,7 +205,7 @@ A Record peer performs these activities:
 - §5 Network protocol — discovery, replication, announcement messages
 - §6 Content processing — fingerprinting, tag stripping, metadata
 
-## 1.6 Protocol scope
+## 1.7 Protocol scope
 
 In scope:
 
