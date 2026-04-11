@@ -9,22 +9,28 @@ scheme.
 Record-entry envelope payloads (the objects referenced by the
 `content` field) MUST be stored as content-addressed objects using:
 
-- **Format**: `dag-cbor` (IPLD canonical CBOR).
+- **Format**: `dag-cbor` (IPLD canonical CBOR, RFC 8949
+  deterministic encoding).
 - **Hash algorithm**: `sha3-512`.
 - **CID encoding (in entries)**: base58btc (multibase prefix `z`).
 
-An implementation MUST compute content CIDs by serialising the payload
-with dag-cbor, hashing with sha3-512, and encoding the resulting CID
-(version 1, dag-cbor codec, sha3-512 hash) using base58btc before
-writing the string into an entry's `content` field.
+An implementation MUST compute content CIDs by serialising the
+payload with dag-cbor, hashing with sha3-512, and encoding the
+resulting CID (version 1, dag-cbor codec, sha3-512 hash) using
+base58btc before writing the string into an entry's `content`
+field.
 
-**Audio blobs and artwork** are NOT stored as dag-cbor objects. They
-are uploaded to the content network using its default import pipeline
-(e.g. UnixFS chunking with sha2-256). The resulting CIDs
-are stored in `track.content.hash` (audio) and
-`track.content.artwork[]` (artwork). The hash algorithm for these
-CIDs depends on the content network configuration, not on this
-specification. See §6.2.4 for audio CID derivation.
+Readers MUST reject any CBOR input that is not in canonical
+dag-cbor form. Re-encoding a non-canonical input to canonical form
+on read is non-conformant because two peers that disagree on the
+canonical bytes will compute different hashes and diverge.
+
+**Audio blobs and artwork** are NOT stored as dag-cbor objects.
+They are uploaded to the content network using its default import
+pipeline. The resulting CIDs are stored in `track.content.hash`
+(audio) and `track.content.artwork[]` (artwork). The hash algorithm
+for these CIDs is determined by the content-network configuration.
+See §6.2.4 for audio CID derivation.
 
 ## 2.2 Entry envelope
 
@@ -57,22 +63,23 @@ Requirements:
 - `content` MUST be the base58btc-encoded CID of the payload object as
   described in §2.1.
 
-Implementations MAY include additional type-specific extras on the
-envelope. The only extra currently defined by this specification is
-Track's `tags` field (§2.4.3), which carries library-scoped labels that
+The only envelope extra defined by this specification is Track's
+`tags` field (§2.4.3), which carries library-scoped labels that
 live on the envelope rather than inside the content payload (so
-re-tagging reuses the same content CID).
+re-tagging reuses the same content CID). Implementations MUST NOT
+write additional extras, and receivers MUST ignore any unknown
+extras rather than persisting or forwarding them.
 
 ## 2.3 ID derivation
 
 | Type  | Identifier input                                    | Formula                            |
 |-------|-----------------------------------------------------|------------------------------------|
 | track | Chromaprint fingerprint string (see §6)             | `sha256(fingerprint)` → lowercase hex |
-| log   | Library address of the target library (`/orbitdb/.../<name>`) | `sha256(address)` → lowercase hex |
+| log   | Library address of the target library (`/record/.../<name>`) | `sha256(address)` → lowercase hex |
 | about | Library address of the owning library               | `sha256(address)` → lowercase hex |
 
 The sha256 input for log/about entries MUST be the **exact library
-address string** including the `/orbitdb/` prefix and `/<name>` suffix.
+address string** including the `/record/` prefix and `/<name>` suffix.
 
 Note that Log and About entries share the same derivation (sha256 of a
 library address). Disambiguation between the two MUST rely on the
@@ -136,8 +143,8 @@ sha2-256 was used in place of sha3-512.
     remixer:     <string>?,
     bpm:         <number>?,
     genre:       <string[]>?,
-    track:       <object>?,           // music-metadata track object
-    disk:        <object>?,           // music-metadata disk object
+    track:       <object>?,           // metadata-library track object
+    disk:        <object>?,           // metadata-library disk object
     ...other_common_tags              // see §6.3
   },
   audio: {
@@ -217,7 +224,7 @@ with the same content CID.
 
 ```
 {
-  address: <string>,   // REQUIRED — /orbitdb/<manifest-cid>/<name>
+  address: <string>,   // REQUIRED — /record/<manifest-cid>/<name>
   alias:   <string>?   // OPTIONAL display alias, may be null
 }
 ```
@@ -233,13 +240,16 @@ log the about entry is in):
   name:     <string>?,
   bio:      <string>?,
   location: <string>?,
-  avatar:   <string>?   // MAY be a CID or an opaque URL
+  avatar:   <string>?   // CID of an image blob; URLs are not permitted
 }
 ```
 
 The `address` field MUST equal the library's own address string.
 Implementations SHOULD stamp this field automatically rather than
-requiring callers to supply it.
+requiring callers to supply it. `avatar`, when present, MUST be a
+content-addressed CID; opaque URLs are forbidden because a
+receiving UI that loads them leaks viewer network identity to the
+publishing peer.
 
 Each library has a single canonical About id
 (`sha256(own_library_address)`), though the library MAY contain multiple
@@ -303,6 +313,16 @@ Requirements:
   a listen-entry write; `DEL` operations MUST be rejected by both the
   writer (on local append) and any replicating peer (on remote merge).
 
+## 2.8.3 Size bounds
+
+A signed log entry object MUST NOT exceed 256 KiB after dag-cbor
+encoding. A record-entry envelope payload (the dag-cbor object
+referenced by `envelope.content`) MUST NOT exceed 1 MiB after
+encoding. Track envelopes MUST carry at most 256 `tags` entries;
+each tag MUST be at most 128 UTF-8 bytes and the `tags` array MUST
+serialise to at most 8 KiB. Receivers MUST drop entries or
+payloads that exceed these bounds at verification time.
+
 ## 2.9 Pinning obligations
 
 When an implementation writes an entry or replicates a remote entry
@@ -321,13 +341,22 @@ content uniquely held by the unlinked library is dropped.
 
 A compliant implementation MUST:
 
-- Treat two tracks with the same `sha256(chromaprint_fingerprint)` as
-  the same track (same `id`).
-- Produce the same fingerprint (and therefore the same track ID) for
-  the same audio content regardless of what metadata tags, artwork, or
-  container framing accompany the audio stream (see §6.1.2.1).
-- Treat two tag-stripped audio blobs as byte-identical given the same
-  source audio, such that `content.hash` is stable across peers.
+- Treat two tracks with the same `sha256(chromaprint_fingerprint)`
+  as the same track (same `id`).
+- Produce the same fingerprint (and therefore the same track ID)
+  for the same audio content regardless of what metadata tags,
+  artwork, or container framing accompany the audio stream (see
+  §6.1.2.1).
+- Treat two tag-stripped audio blobs as byte-identical given the
+  same source audio, such that `content.hash` is stable across
+  peers.
+
+The `envelope.content` CID is **not** guaranteed to be identical
+across peers for the same audio source, because the dag-cbor
+payload includes metadata tags and format fields whose set varies
+with the ingesting peer's metadata library. Cross-peer identity is
+anchored by the track ID and the audio-blob CID, not by
+`envelope.content`.
 
 A compliant implementation SHOULD:
 
@@ -353,6 +382,6 @@ A compliant implementation SHOULD:
   `[]` and MUST sort `tags` lexicographically before comparison so
   that `["a","b"]` and `["b","a"]` are equal.
 
-  When rejecting a duplicate the implementation SHOULD return an
-  error identifiable by the `DUPLICATE_ENTRY` code (§7.4) and MUST
-  NOT append the entry to the local oplog.
+  When rejecting a duplicate the implementation MUST NOT append
+  the entry to the local oplog and SHOULD surface an identifiable
+  error to callers.

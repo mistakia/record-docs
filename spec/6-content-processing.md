@@ -14,21 +14,16 @@ ingested audio file.
 
 ### 6.1.2 Fingerprint parameters
 
-The fingerprint MUST be computed using Chromaprint's default
-parameters. Implementations MUST NOT override any Chromaprint parameter
-that affects the fingerprint content (algorithm version, sample rate
-scaling, length, etc). Only the `command` / binary path MAY be
-configured.
+The fingerprint MUST be computed using Chromaprint algorithm
+version 2. Implementations MUST NOT override any parameter that
+affects the fingerprint content (algorithm version, sample-rate
+scaling, length). Only the binary path MAY be configured.
 
-**Version guidance.** Implementations SHOULD use Chromaprint 1.5.1
-or newer. Cross-version regression tests against fpcalc 1.5.1
-(macOS) and 1.6.0 (Ubuntu) produce byte-identical fingerprints for
-both simple and complex test audio; pinning to an older version is
-not required but older releases have not been validated against
-this specification. The invariant is that the produced fingerprint
-string is byte-identical for byte-identical decoded audio regardless
-of the tool version used; any tool that violates this invariant is
-non-compliant.
+The invariant is that the produced fingerprint string is
+byte-identical for byte-identical decoded audio regardless of the
+tool version used. An implementation that upgrades past a future
+default-algorithm change MUST continue to request algorithm 2
+explicitly rather than silently shifting track IDs.
 
 ### 6.1.2.1 Tag independence (idempotency)
 
@@ -62,37 +57,22 @@ track_id = sha256(fingerprint_string)   // lowercase hex output
 The sha256 input MUST be the fingerprint string, not its raw bytes
 before encoding. The output MUST be lowercase hex.
 
-### 6.1.5 Test vector
+### 6.1.5 Test procedure
 
-A complete, reproducible end-to-end test vector requires a specific
-audio file that an implementer can obtain; this specification does
-not distribute audio. The pipeline is:
+The track-id pipeline is:
 
 1. Run `fpcalc -json <file>` against any audio file.
 2. Extract the `fingerprint` field as a UTF-8 string.
-3. Compute `sha256(fingerprint)` with the bytes of the string (not
-   its hex or base64 form) as input.
+3. Compute `sha256(fingerprint)` with the UTF-8 bytes of the
+   string as input.
 
-The resulting 64-character lowercase hex digest is the `track_id`.
+The resulting 64-character lowercase hex digest is the
+`track_id`.
 
-As a worked example from a real ingest (440-second stereo MP3 at
-128 kbps, 17.9 MB, fpcalc 1.5.1): the produced fingerprint is 3316
-bytes long and begins
-`AQADtIkiUUmiRMThFw_8wg_RBz38ED768OgPP4TR8-gPP4Rx4vBDGOfh...`. The
-resulting track id is:
-
-```
-cb514948207f3504479784ca7481f207596da90e0adcb81ad0bae539df2e248e
-```
-
-An implementer holding a byte-identical audio file will reproduce
-this digest exactly. An implementer holding a differently-tagged
-version of the same audio (per §6.1.2.1) will also reproduce this
-digest exactly, because the Chromaprint operation is tag-
-independent. The invariant to verify is not the specific digest
-but the round-trip property: `sha256(fpcalc(tagged)) ==
-sha256(fpcalc(strip_tags(tagged)))` for any compliant tag-stripping
-operation (§6.2).
+The invariant to verify across implementations is the round-trip
+property: `sha256(fpcalc(tagged))` MUST equal
+`sha256(fpcalc(strip_tags(tagged)))` for any compliant
+tag-stripping operation (§6.2).
 
 ## 6.2 Tag stripping
 
@@ -126,19 +106,11 @@ The following ffmpeg flags achieve the required behaviour:
 -map_metadata -1    # clear metadata
 ```
 
-Any equivalent operation (other ffmpeg invocations, sox, raw stream
-extraction, etc) is acceptable as long as it produces byte-identical
-output for byte-identical input across implementations and tool
-versions.
-
-**Version guidance.** Implementations SHOULD use ffmpeg 6.1.1 or
-newer (or a feature-equivalent tool of similar vintage). Cross-
-version regression tests against ffmpeg 6.1.1 (Ubuntu) and 7.1.1
-(macOS) produce byte-identical tag-stripped output for mp3 and m4a
-inputs; the `-bitexact` flag reliably suppresses encoder-version
-tags across these versions. Older ffmpeg releases may leave
-non-deterministic encoder metadata even with `-bitexact` and are
-not validated against this specification.
+Any equivalent operation is acceptable as long as it produces
+byte-identical output for byte-identical input across
+implementations and tool versions. Older tools that fail to
+suppress encoder-version metadata despite `-bitexact` are
+non-conformant.
 
 ### 6.2.4 Audio CID
 
@@ -150,27 +122,12 @@ Because the tag-stripping operation is byte-deterministic, the same
 source audio processed by compliant implementations will produce the
 same CID, enabling cross-peer deduplication at the audio layer.
 
-### 6.2.5 Test procedure
-
-Two implementations are cross-compatible if running the §6.2.3 ffmpeg
-flags on the same input produces the same output bytes and therefore
-the same CID after ingestion.
-
-1. Take an arbitrary audio file (mp3 or m4a is easiest).
-2. Run `ffmpeg -i input.mp3 -map 0:a -codec:a copy -bitexact -map_metadata -1 stripped.mp3`.
-3. Compute the CID with the content network's default chunker/hasher.
-4. Compare across implementations.
-
-Two identical runs on the same machine must produce byte-identical
-`stripped.mp3` files.
-
 ## 6.3 Metadata extraction
 
 ### 6.3.1 Tool
 
-Implementations SHOULD use a metadata extraction library (such as
-`music-metadata` for Node.js) that produces the common/format field
-set described below.
+Implementations SHOULD use a metadata-extraction library that
+produces the common and format field sets described below.
 
 ### 6.3.2 Persisted tags
 
@@ -185,8 +142,8 @@ source file):
 - `title`, `artist`, `artists`, `albumartist`, `album`, `remixer`,
   `bpm`, `genre`, `track`, `disk`.
 
-Additional music-metadata common fields MAY be included as
-passthrough.
+Additional common-tag fields from the extraction library MAY be
+included as passthrough.
 
 ### 6.3.3 Persisted format fields
 
@@ -245,7 +202,7 @@ The canonical ingest path for a local audio file is:
 2. Compute `track_id = sha256(fingerprint)`.
 3. If an entry with this id already exists in the target library,
    return it and stop.
-4. Parse metadata with `music-metadata` (or equivalent). If the
+4. Parse metadata with a metadata-extraction library. If the
    reported audio duration is `0`, unknown, or the decoded sample
    count is zero, the implementation MUST reject the ingest.
 5. Extract artwork from `metadata.common.picture` into a separate
@@ -276,29 +233,18 @@ The canonical ingest path for a local audio file is:
 Ingest from an external source URL proceeds as:
 
 1. Resolve the URL to one or more `{ extractor, id, url, ... }`
-   resolver records (§2.4.2) via an external tool (reference
-   implementation uses youtube-dl via `record-resolver`).
+   resolver records (§2.4.2) via an external extraction tool.
 2. For each resolver record, check if a track with the same
    `(extractor, id)` already exists; if so, return the existing
-   entry.
+   entry. The cached record is not re-validated against the
+   remote URL, because a track is identified by its audio
+   fingerprint, not by the URL it was fetched from.
 3. Download the audio stream from `resolver.url` to a temporary
    file.
-4. Call the local file ingest pipeline (§6.4.1) with the resolver
-   record attached. Before persistence, implementations MUST strip
-   the `url` field from the resolver record so it is not written to
-   the log.
-
-**Cache staleness.** The `(extractor, id)` dedup check in step 2
-returns the previously-ingested entry as-is; the cached record is
-not re-validated against the remote URL. This is intentional: the
-track is identified by its audio fingerprint, not by the URL it
-was fetched from. If a resolver URL later changes or dies, the
-locally cached track remains valid and the resolver entry remains
-correct for historical provenance. Implementations MAY offer a
-"refresh resolver metadata" operation at the API layer that
-re-runs the resolver and updates the envelope, but such an
-operation is outside the scope of the normative ingest pipeline
-and MUST NOT change `track_id` or `content.hash`.
+4. Call the local file ingest pipeline (§6.4.1) with the
+   resolver record attached. Before persistence, implementations
+   MUST strip the `url` field from the resolver record so it is
+   not written to the log.
 
 ### 6.4.3 CID ingest
 

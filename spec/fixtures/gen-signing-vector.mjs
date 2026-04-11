@@ -29,7 +29,7 @@ const pubHex = bytesToHex(pubUncompressed) // 130 hex chars
 // from the test key so the vector is fully self-consistent.
 const unsigned = {
   hash: null,
-  id: '/orbitdb/zdpuAqyy2yLfTpevS4pxfVadSmS14oRNAXMvnAYet9zKwSqZc/record',
+  id: '/record/zdpuAqyy2yLfTpevS4pxfVadSmS14oRNAXMvnAYet9zKwSqZc/library',
   payload: {
     op: 'PUT',
     key: 'cd24f44d2ee1fb5dba99a6cac74f0398f5a909f3341688d19ea59926c8ef693f',

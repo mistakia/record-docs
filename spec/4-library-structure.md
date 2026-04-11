@@ -184,31 +184,14 @@ are permitted only if the implementation guarantees this equivalence
 (for example, by recomputing state for each touched key after each
 batch).
 
-## 4.6 Memory-scalability requirements
+## 4.6 Memory scalability
 
-An implementation MUST support two memory-scalability mechanisms (or
-equivalents):
-
-### 4.6.1 Lazy entry loading
-
-An implementation MUST support operating on logs whose full entry set
-does not fit in memory. In practice this means:
-
-- The in-memory representation of "entries present in the log" MUST be
-  decoupled from "full entry objects loaded into memory".
-- Lookups for an entry by hash MAY fetch the entry from content-
-  addressed storage on demand.
-- Traversal operations (iteration, tail discovery) MUST be able to
-  run against a log whose entries are lazy-loaded.
-
-### 4.6.2 Hash index
-
-An implementation SHOULD maintain a lightweight index mapping
-`entry_hash -> next[]` for every entry in the log. This index enables:
-
-- O(1) existence checks without a full entry load.
-- Traversal of the log's graph structure without loading entry payloads.
-- Counting log length.
+An implementation MUST be able to operate on logs whose full entry
+set does not fit in memory. The in-memory representation of
+"entries present in the log" MUST be decoupled from "full entry
+objects loaded into memory", so that traversal and existence
+checks can run against an oplog whose entry bodies are fetched on
+demand.
 
 ## 4.7 Per-library pinning
 
@@ -243,12 +226,11 @@ another still-linked library.
 
 ## 4.8 Dual-indexing pattern (SHOULD)
 
-Implementations with non-trivial query requirements SHOULD adopt a
-dual-indexing strategy:
-
-- **Source of truth**: the signed append-only log.
-- **Query cache**: a local database rebuilt from the log on first
-  load and maintained incrementally.
-
-The local query database is NOT part of the protocol and its schema
-is an implementation choice.
+Implementations with non-trivial query requirements SHOULD adopt
+a dual-indexing strategy: the signed append-only log is the
+authoritative source of state, and a local query database
+projects that state for fast reads. Every cell in the query
+database MUST be derivable from the oplog alone; rebuilding the
+query database from scratch MUST yield the same state as
+incremental maintenance. The query database schema is an
+implementation choice and is not visible to peers.
