@@ -27,19 +27,14 @@ explicitly rather than silently shifting track IDs.
 
 ### 6.1.2.1 Tag independence (idempotency)
 
-Chromaprint operates on decoded audio samples, not on file-level
-bytes. Therefore, the fingerprint MUST be identical regardless of
-what metadata tags, artwork, or container framing accompany the audio
-stream. Two files containing the same audio samples but different tags
-(or no tags) MUST produce the same fingerprint string and therefore
-the same track ID. This is the core invariant that enables cross-peer
-deduplication: a peer that ingests a tagged file and a peer that
-ingests the same audio with different (or stripped) tags will converge
-on the same track identity.
+Chromaprint operates on decoded audio samples. The fingerprint MUST be
+identical regardless of metadata tags, artwork, or container framing.
+Two files with the same audio samples but different tags MUST produce
+the same fingerprint string and track ID.
 
 Implementations MUST NOT feed tag-stripped audio to the fingerprinter
-as a workaround for tag sensitivity. If a fingerprinting tool produces
-different output depending on container metadata, that tool is
+as a workaround for tag sensitivity. A fingerprinting tool that
+produces different output depending on container metadata is
 non-compliant.
 
 ### 6.1.3 Fingerprint encoding
@@ -160,13 +155,11 @@ the specified types when present (any field MAY be omitted or
 | `tagTypes`         | string[]|                                       |
 | `trackInfo`        | object  | passthrough from metadata library     |
 
-`duration` and `bitrate` are used by query implementations for
-sorting and display; they SHOULD NOT be null for a fully-indexed
-track. Implementations MUST NOT coerce missing fields to `0` — the
-correct representation for unknown is omission or `null`. The
-`codec` and `container` string values are not controlled vocabulary
-in v1; portable implementations SHOULD normalise them for display
-client-side rather than assume cross-implementation equality.
+Implementations MUST NOT coerce missing fields to `0` — the correct
+representation for unknown is omission or `null`. `codec` and
+`container` are not controlled vocabulary in v1; implementations
+SHOULD normalise them client-side rather than assume
+cross-implementation equality.
 
 ### 6.3.3 Artwork
 

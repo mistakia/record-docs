@@ -18,10 +18,8 @@ message formats are MUST-level requirements.
 
 ## 5.2 Peer discovery
 
-Peers MUST be able to discover one another to exchange addresses,
-library information, and signed log entries. An implementation
-SHOULD support at least two of the following mechanisms and MUST
-be able to bootstrap from any one in isolation:
+An implementation SHOULD support at least two of the following
+mechanisms and MUST be able to bootstrap from any one in isolation:
 
 - **Shared bootstrap service**: a well-known directory that
   returns candidate peer addresses for the Record network.
@@ -30,14 +28,8 @@ be able to bootstrap from any one in isolation:
 - **Content-network native discovery**: the underlying
   content-addressed network's own peer discovery.
 
-A joining peer SHOULD attempt its supported mechanisms in
-parallel. Implementations MUST NOT rely on a specific ordering
-for correctness; the discovery guarantee is "at least one
-mechanism succeeds eventually."
-
-**Interop floor.** Every implementation MUST support
-content-network native discovery. The other mechanisms are
-acceleration layers on top of it.
+Every implementation MUST support content-network native discovery.
+The other mechanisms are acceleration layers.
 
 ## 5.3 Library announcement (RECORD topic)
 
@@ -227,17 +219,15 @@ operation and MUST be bounded:
 3. **Concurrency bound.** The peer MUST bound the number of
    in-flight fetches per library. The bound MUST be finite and
    SHOULD default to at least 4 concurrent fetches.
-4. **Per-entry timeout.** Each outstanding fetch MUST have a
-   finite timeout. The timeout SHOULD default to at least 30
-   seconds. On timeout the peer MUST record the entry as
-   unresolved, MUST NOT block the rest of the traversal waiting
-   for it, and MAY retry later under a backoff schedule.
+4. **Per-entry timeout.** Each fetch MUST have a finite timeout
+   (SHOULD default to at least 30 seconds). On timeout the peer
+   MUST record the entry as unresolved, MUST NOT block the
+   traversal, and MAY retry under backoff.
 5. **Graph completeness.** A subgraph is "complete" when every
-   enqueued entry has been successfully fetched or permanently
-   abandoned. Merging (§5.4.3) operates only on the subset of
-   entries that were successfully fetched, verified, and whose
-   transitive `next` closure is also verified. Entries whose
-   ancestors could not be fetched MUST NOT be merged.
+   enqueued entry has been fetched or permanently abandoned.
+   Merging (§5.4.3) operates only on entries that were fetched,
+   verified, and whose transitive `next` closure is also
+   verified. Entries with unfetched ancestors MUST NOT be merged.
 
 The fetch SHOULD be pausable and resumable to support
 disconnect semantics (§5.4.4). Resume MUST re-enter the

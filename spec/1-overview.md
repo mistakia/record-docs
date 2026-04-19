@@ -53,18 +53,12 @@ account system. Every peer is a full node.
 ### 1.2.3 Non-goals
 
 - Global consensus or canonical network state.
-- Anonymity. Entries are signed with long-lived keys and
-  announced on a public overlay.
-- Auditable listen counts. Listen entries are self-reported and
-  trivially forgeable; the protocol provides no basis for
-  royalty accounting or proof of playback.
-- Distributed moderation or takedown. Peers decide what they
-  replicate; tombstones are advisory.
-- Economic incentives. No tokens, payments, or reputation scores.
-- In-place key rotation. A compromised writer key ends the
-  library's useful life.
-- Metadata consensus. Peers do not have to agree on tags,
-  descriptions, or artwork for a given track.
+- Anonymity.
+- Auditable listen counts.
+- Distributed moderation or takedown.
+- Economic incentives.
+- In-place key rotation.
+- Metadata consensus across peers.
 - Network-wide search or a global library registry.
 
 ### 1.2.4 Trade-offs
