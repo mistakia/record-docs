@@ -194,7 +194,13 @@ Optional fields (MAY be omitted or null):
 ```
 
 Implementations MUST NOT persist a streaming `url` field in a resolver
-entry.
+entry. Streaming URLs are short-lived and host-specific (often
+signed-and-expiring CDN links), so persisting them poisons the log
+with entries that decay on replay and leak the original ingest path
+to every replicating peer. The §6.4.2 URL ingest pipeline strips
+`resolver.url` before persistence; this rule restates the invariant
+on the data-model side so a replicating peer that receives an
+out-of-spec entry rejects it rather than silently absorbing the leak.
 
 The tuple `(extractor, id)` MUST uniquely identify an external source
 pointer and MAY be used as a cache key to avoid re-downloading.
@@ -322,6 +328,14 @@ encoding. Track envelopes MUST carry at most 256 `tags` entries;
 each tag MUST be at most 128 UTF-8 bytes and the `tags` array MUST
 serialise to at most 8 KiB. Receivers MUST drop entries or
 payloads that exceed these bounds at verification time.
+
+These bounds protect peers under untrusted replication: the entry
+bound aligns with §5.4.1's pubsub message size cap so a single
+fetched entry never exceeds the per-message budget the network
+layer is sized for; the payload and tag bounds bound the
+per-entry decode and indexing cost so a hostile writer cannot
+inflate a single library's replication or query-index footprint
+beyond the worst case implementations are required to handle.
 
 ## 2.9 Pinning obligations
 
