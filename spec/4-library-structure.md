@@ -162,6 +162,22 @@ query index. Recomputing the current entry on merge MUST use the
 complete set of known entries for that key; partial recomputation
 (looking only at newly-arrived entries) is not conformant.
 
+**Reference vector.** `spec/fixtures/gen-current-state-vector.mjs`
+builds a three-entry race set sharing one envelope.id and exercises
+both tiebreakers:
+
+| Entry | clock.time | envelope.timestamp | entry.hash (base58btc CIDv1) |
+| ----- | ---------- | ------------------ | --------------------- |
+| A     | 5          | 300                | `zBwWX5sj8wEnAJ8k1ZtrsqKpi6EDftGkcGjNJeepSKbU1YhnVgLaCDu9yFFjmT8MNQhnbWayLMVz93eQhgmsFzWxnVA1U` |
+| B     | 7          | 200                | `zBwWX88KGtBXr3KSnx3VRFU3kAdzAcR1g4GrLCaMdLdi3BWepg4nvkcEUMDWXudVjLD9AbG6672Qzo3SYoDZJ89cfYLs1` |
+| C     | 7          | 200                | `zBwWX6cFvYVau8nCB7u6v4sBWDsLJ8LNxLk8QLovwhSPPau38u8vSNxKqMy7ksxaNasfq8C5V4v9QvyDHoYp2MWz5TRDF` |
+
+A is eliminated on `clock.time` (5 < 7). B and C tie on `clock.time`
+and `timestamp`; the raw-multihash-bytes ASC tiebreak picks **C** as
+the winner (C's multihash sorts before B's). The fixture verifies that
+swapping the two non-winner entries in the input set produces the same
+winner, confirming the ordering rule is total.
+
 ## 4.5 Merge semantics
 
 When merging a remote log into the local log:
