@@ -69,6 +69,24 @@ property: `sha256(fpcalc(tagged))` MUST equal
 `sha256(fpcalc(strip_tags(tagged)))` for any compliant
 tag-stripping operation (§6.2).
 
+**Reference vector.** Against the committed
+`spec/fixtures/audio/sine-sweep-5s.flac` source (5-second 440 Hz sine,
+44.1 kHz, FLAC, bitexact, no metadata; 68127 bytes), the pinned
+toolchain (ffmpeg 7.1.1, fpcalc 1.5.1 / Chromaprint algorithm 2) emits:
+
+```
+fingerprint = AQAAE0mUaEkSZSoAAAAAAAAA
+track_id    = 20599ccf9f5efb8cc1d6e2ae464471f6f8fab82066a42579b07024d7673b1005
+```
+
+`spec/fixtures/gen-audio-pipeline-smoke.mjs` regenerates and verifies
+both values; the script's preflight step aborts if the runtime
+toolchain versions do not match the pinned values, preventing a
+misconfigured machine from silently rewriting these constants. The
+fixture verifies single-machine cross-invocation determinism only;
+cross-machine determinism is a residual known risk documented in
+`spec/fixtures/README.md`.
+
 ## 6.2 Tag stripping
 
 ### 6.2.1 Requirement
@@ -116,6 +134,26 @@ is stored in `track.content.hash`.
 Because the tag-stripping operation is byte-deterministic, the same
 source audio processed by compliant implementations will produce the
 same CID, enabling cross-peer deduplication at the audio layer.
+
+**Reference vector.** Against the committed
+`spec/fixtures/audio/sine-sweep-5s.flac` source under the pinned
+toolchain, the §6.2.3 ffmpeg flags produce a tag-stripped blob of
+68127 bytes with the deterministic content-identity hash:
+
+```
+sha256(tag-stripped bytes) = 8b96e6aa53240d01736fb444f55ce8184e78d32dfb2013ad48f14c3592308d69
+```
+
+(The source FLAC was authored with `-bitexact -map_metadata -1` so
+it already carries no metadata; the strip operation is an identity
+on this fixture, which is fine — the load-bearing property the
+fixture exercises is determinism across invocations, not a metadata
+delta.) The exact `track.content.hash` CID an implementation writes
+depends on its content network's chunking and hashing profile;
+two implementations that disagree on the profile may write distinct
+CIDs over byte-identical stripped audio. The cross-peer dedup
+guarantee in §6.6 is anchored to the stripped bytes, not to the
+profile-specific CID encoding.
 
 ## 6.3 Metadata extraction
 
@@ -215,6 +253,16 @@ The canonical ingest path for a local audio file is:
     e. Signs and appends the oplog entry.
     f. Pins the oplog entry hash non-recursively.
 14. Clean up the temporary tag-stripped file.
+
+**End-to-end reference.** `spec/fixtures/gen-audio-pipeline-smoke.mjs`
+exercises steps 1–2 and 6–7 of this pipeline against the committed
+`spec/fixtures/audio/sine-sweep-5s.flac` source under the pinned
+toolchain. The expected fingerprint and `track_id` are embedded in
+§6.1.5; the expected sha256 of the tag-stripped bytes is embedded
+in §6.2.4. Steps 3, 4, 5, 8–13 are not exercised by this smoke
+fixture (they touch storage, indexing, and signing layers that
+each have their own dedicated fixtures: F3 for AC chain, F0/F4 for
+signing).
 
 ### 6.4.2 URL ingest
 
