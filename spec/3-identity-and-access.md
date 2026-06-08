@@ -263,6 +263,22 @@ implementation's content-network timeout), the library MUST be
 treated as unopenable. The implementation MAY retry the chain
 resolution later and MUST NOT proceed without a verified AC chain.
 
+**Reference vector.** `spec/fixtures/gen-ac-chain-vector.mjs` builds
+the three-object chain using the §3.4.5 test pubkey as the sole
+write-list element. The resulting CIDs and assembled address are:
+
+| Object              | dag-cbor bytes | CID (base58btc CIDv1) |
+| ------------------- | -------------- | --------------------- |
+| Inner write-list    | 76             | `zBwWX55HXWPLKbELsvnimVMZhmtAiiM7vCeyLoyeP8AibJtNQ1XYD6g4rY3QMnGXVD6w5HUDH8n5DWY7KVXkzvFqaVR7K` |
+| AC wrapper          | 124            | `zBwWX8Yoh5RwS7v61cXCk96SXiE7dexudEawmsr2DFswc14YmqPCfZ7w6Tf818jMAj6nSC1L14FL8dccFw5Cvh6D29RNC` |
+| Library manifest    | 143            | `zBwWX6eaeb5ZhToR5AL62215fMiLTZYAtYpnDcBCebF4PJiLWK2n8MnGCArMMZc3nbLvaCGsg51etXpMrdVH5rgd9DUf8` |
+
+Assembled library address (§3.6):
+
+```
+/record/zBwWX6eaeb5ZhToR5AL62215fMiLTZYAtYpnDcBCebF4PJiLWK2n8MnGCArMMZc3nbLvaCGsg51etXpMrdVH5rgd9DUf8/library
+```
+
 ### 3.5.2 AC `type`
 
 This version of the protocol defines exactly one AC type:
