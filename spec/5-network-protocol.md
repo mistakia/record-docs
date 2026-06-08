@@ -115,6 +115,16 @@ MUST treat announcement content as untrusted hints until the
 underlying library's AC chain and entry signatures have been
 verified per §3.
 
+**Reference vector.** `spec/fixtures/gen-network-message-vector.mjs`
+emits a canonical single-entry LoadedAboutEntry whose
+`payload.value.content` is the decoded About payload object (not the
+CID string the canonical wire form would carry) per the inline
+transform contract above. The generator verifies that the inlined
+`content.address` equals the owning library address (§2.6), that
+JSON `parse(stringify(msg))` deep-equals `msg`, and that the encoded
+message is well within the 256 KiB bound (1060 bytes for the
+single-entry vector).
+
 ### 5.3.3 Announcement trigger
 
 A peer SHOULD publish an announcement:
@@ -196,6 +206,16 @@ the same trigger and MUST include an `incomplete: true` field on
 all but the final message in a batch. Receivers MUST wait for a
 message without `incomplete: true` before treating the batch as
 a complete snapshot.
+
+**Reference vector.** A canonical single-entry heads message is:
+
+```
+{"type":"heads","heads":["zBwWX7sbGgnamYuFHWzehnHysmRkS9rVvdgATL8CPab1ybY1j3xyy9F7Pu9m86AgsyCWfXbBPdxXfhEFzd6fdn14uEVAF"]}
+```
+
+(122 bytes; the embedded hash is the F0/F4 signed-entry CID per §4.1.2.)
+`spec/fixtures/gen-network-message-vector.mjs` regenerates and
+verifies it under the §5.4.1 size bound.
 
 ### 5.4.2 Fetch traversal
 
