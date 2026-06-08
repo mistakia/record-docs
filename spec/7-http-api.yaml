@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: record-node HTTP API
-  version: 1.0.0-draft
+  version: 1.0.0
   summary: HTTP + WebSocket API for the rebuilt record-node peer.
   description: |
     OpenAPI 3.1 spec for the record-node API server. This is a clean-slate
