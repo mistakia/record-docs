@@ -50,6 +50,8 @@ This repo is the **single source of truth for Record protocol semantics**. The o
 - `spec/5-network-protocol.md` — wire protocol
 - `spec/6-content-processing.md` — content processing
 - `spec/7-http-api.yaml` — HTTP API (OpenAPI)
+- `spec/8-client-application.md` — desktop application client
+- `spec/9-chrome-extension.md` — chrome extension client
 
 **Governing guidelines**:
 
