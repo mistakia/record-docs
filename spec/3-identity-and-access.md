@@ -195,6 +195,11 @@ order, integer width), including a `hash` field in the unsigned
 map, a non-deterministic ECDSA nonce, or feeding the raw CBOR
 bytes to ECDSA without the intermediate SHA-256 step.
 
+`spec/fixtures/gen-signing-vector.mjs` is the generator for this
+vector. It also emits the §4.1.1 / §4.1.2 signed-entry CID derived
+from the 8-field signed object — one script, one private-key chain,
+two related vectors.
+
 ## 3.5 Access controller
 
 Each library is bound to an **Access Controller** (AC) — a

@@ -1,19 +1,30 @@
 /**
- * Generate a deterministic dag-cbor signing test vector for spec §3.4.5.
+ * Generate deterministic dag-cbor test vectors for spec §3.4.5 (signing)
+ * and §4.1.1 / §4.1.2 (signed-entry CID = entry.hash).
  *
  * Uses a fixed test-only private key (DO NOT USE for anything real).
- * Outputs:
+ *
+ * Vector 1 (signing, §3.4.5):
  *   - the compressed public key (hex)
  *   - the node id (identical to the compressed public key hex)
  *   - the unsigned entry dag-cbor bytes (hex)
  *   - the SHA-256 of those bytes (hex)
  *   - the ECDSA/secp256k1 signature (DER-encoded, hex)
+ *
+ * Vector 2 (signed-entry CID, §4.1.1 / §4.1.2):
+ *   - the 8-field signed object's dag-cbor bytes (hex)
+ *   - its CID (base58btc CIDv1, dag-cbor codec, sha3-512 multihash)
+ *     — this is what gets assigned to entry.hash after write.
  */
 
-import { encode } from '@ipld/dag-cbor'
+import { encode, code as dagCborCode, decode } from '@ipld/dag-cbor'
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { sha256 } from '@noble/hashes/sha2.js'
+import { sha3_512 } from '@noble/hashes/sha3.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
+import { CID } from 'multiformats/cid'
+import { create as digestCreate } from 'multiformats/hashes/digest'
+import { base58btc } from 'multiformats/bases/base58'
 
 const TEST_PRIV_HEX =
   '0000000000000000000000000000000000000000000000000000000000000001'
@@ -65,3 +76,52 @@ console.log('  ' + bytesToHex(sigDer))
 const sigForVerify = secp256k1.Signature.fromBytes(sigDer, 'der').toBytes('compact')
 const ok = secp256k1.verify(sigForVerify, digest, pubCompressed)
 console.log('\nVerification round-trip:', ok ? 'PASS' : 'FAIL')
+
+// --- F4 extension: §4.1.1 / §4.1.2 signed-entry CID ---
+//
+// The 8-field signed object is the same unsigned entry plus {key, sig}.
+// Its CID is sha3-512 of the canonical dag-cbor of those 8 fields, wrapped
+// as a CIDv1 with dag-cbor codec. This CID is locally assigned to
+// entry.hash after the write completes; it is NOT part of the signed bytes.
+
+const SHA3_512_CODE = 0x14
+const signed = {
+  ...unsigned,
+  key: pubHex,
+  sig: bytesToHex(sigDer)
+}
+const signedCbor = encode(signed)
+const signedDigest = sha3_512(signedCbor)
+const signedMh = digestCreate(SHA3_512_CODE, signedDigest)
+const signedCid = CID.createV1(dagCborCode, signedMh).toString(base58btc)
+
+console.log('\n=== §4.1.1 / §4.1.2 Signed-Entry CID Vector ===\n')
+console.log('Signed object field count: ' + Object.keys(signed).length + ' (must be 8)')
+console.log('Signed object dag-cbor (hex, ' + signedCbor.length + ' bytes):')
+console.log('  ' + bytesToHex(signedCbor))
+console.log('\nsha3-512 of signed dag-cbor (hex):')
+console.log('  ' + bytesToHex(signedDigest))
+console.log('\nSigned-entry CID (base58btc CIDv1, dag-cbor codec):')
+console.log('  ' + signedCid)
+
+// Independent verification: re-decode the CID's multihash and confirm the
+// underlying digest equals sha3_512 of the script's serialized signed object.
+const decodedCidParts = CID.parse(signedCid, base58btc)
+const mhBytes = decodedCidParts.multihash.digest
+const mhMatches = bytesToHex(mhBytes) === bytesToHex(signedDigest)
+console.log('\nIndependent CID-multihash check:')
+console.log('  CID multihash digest = sha3_512(signed dag-cbor) : ' + (mhMatches ? 'PASS' : 'FAIL'))
+
+// Sanity: decode(encode(signed)) deep-equals signed (round-trip).
+// JSON.stringify is sensitive to key order, but dag-cbor canonicalizes
+// keys; compare with a sorted-key replacer so the order-agnostic
+// equality is what we're checking.
+const sortedReplacer = (_k, v) =>
+  v && typeof v === 'object' && !Array.isArray(v)
+    ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, v[k]]))
+    : v
+const signedDecoded = decode(signedCbor)
+const signedRt = JSON.stringify(signedDecoded, sortedReplacer) === JSON.stringify(signed, sortedReplacer)
+console.log('  Signed-object dag-cbor round-trip                : ' + (signedRt ? 'PASS' : 'FAIL'))
+
+if (!mhMatches || !signedRt) process.exit(1)

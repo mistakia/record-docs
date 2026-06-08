@@ -40,12 +40,30 @@ object:
 IPLD link fields MUST be `["next", "refs"]`. The signed log entry
 `v` field MUST be 2.
 
+**Reference vector.** Continuing from the §3.4.5 signing vector,
+extending the unsigned entry with `{key, sig}` yields the 8-field
+signed object whose canonical dag-cbor encoding is 688 bytes long
+and whose sha3-512 hash, wrapped as a CIDv1 with dag-cbor codec
+and encoded as base58btc, is:
+
+```
+zBwWX7sbGgnamYuFHWzehnHysmRkS9rVvdgATL8CPab1ybY1j3xyy9F7Pu9m86AgsyCWfXbBPdxXfhEFzd6fdn14uEVAF
+```
+
+This is the value `entry.hash` MUST take for the §3.4.5 vector after
+write. `spec/fixtures/gen-signing-vector.mjs` emits the full byte
+sequence and verifies that the CID multihash digest equals the
+sha3-512 of the script's serialized signed object.
+
 ### 4.1.2 Entry hash
 
 The entry hash is the CID of the 8-field signed dag-cbor object
 above. It is computed after signing and assigned locally to
 `entry.hash` for reference; `hash` is not itself part of the
 stored bytes.
+
+For the §3.4.5 vector, the entry hash MUST equal the CID embedded in
+§4.1.1 above.
 
 ## 4.2 Lamport clock
 
