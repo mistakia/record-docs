@@ -5,8 +5,8 @@
   "type": "module",
   "description": "Deterministic test-vector generators for the Record Protocol v1 spec. Run `npm install` in this directory, then `node gen-signing-vector.mjs` to reproduce §3.4.5.",
   "dependencies": {
-    "@ipld/dag-cbor": "^9.2.0",
-    "@noble/curves": "^2.0.1",
-    "@noble/hashes": "^2.0.0"
+    "@ipld/dag-cbor": "9.2.6",
+    "@noble/curves": "2.0.1",
+    "@noble/hashes": "2.0.1"
   }
 }
