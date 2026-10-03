@@ -25,7 +25,7 @@ For project overview and build, see [[README.md]]. For agent-facing build instru
 
 ## Context
 
-This repo is the **single source of truth for Record protocol semantics**. The other Record repositories (`record-app`, `record-node`, `record-resolver`, `record-ipfsd`, `record-chrome-extension`) implement against the spec defined here. Protocol-affecting changes should land here in coordination with the implementations.
+This repo is the **single source of truth for Record protocol semantics**. The other Record repositories (`record-app`, `record-node`, `record-resolver`, `record-chrome-extension`) implement against the spec defined here. Protocol-affecting changes should land here in coordination with the implementations.
 
 ## Notable Context
 
@@ -35,7 +35,6 @@ This repo is the **single source of truth for Record protocol semantics**. The o
 
 - [[user:repository/active/record-app/ABOUT.md]] — application layer (UI, importer, player)
 - `repository/active/record-node/` — node implementation (networking, storage, indexing)
-- `repository/active/record-ipfsd/` — IPFS daemon wrapper
 - `repository/active/record-chrome-extension/` — web import tool
 - `repository/active/record-resolver/` — IPFS resolution layer
 
