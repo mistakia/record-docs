@@ -1,5 +1,9 @@
 # Record Protocol Specification — Changelog
 
+## v1.1.3 — 2026-10-03
+
+API addition, no protocol or vector change. Chapter 7 is version 1.3.0, with two fields record-app asked for. `Track.library_addresses` lists the libraries, among those a request covers, that hold a live PUT of the track; a list folds such a track into one item, so a client could not tell which libraries hold it. `Library.audio_size_bytes` totals the audio of the library's live tracks, for the §8.9.1 replication-policy storage estimate.
+
 ## v1.1.2 — 2026-10-03
 
 API addition, no protocol or vector change. Chapter 7 is version 1.2.0. It adds `PATCH /tracks/{id}`, which corrects a track's audio metadata: the node writes a new content object for the same audio with `content.tags` changed and appends a superseding PUT of the same id. Before this, a label fix after ingest needed a delete and a re-import, which leaves a tombstone. Each given tag is set, `null` removes one, and `acoustid_fingerprint` cannot change. The audio, artwork, resolver records, and envelope labels are kept. §2.4.3 now says how a `content.tags` correction differs from relabelling.
