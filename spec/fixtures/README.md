@@ -39,11 +39,11 @@ Each script exits non-zero on any verification failure.
 | F4  | `gen-signing-vector.mjs` (extended) | §4.1.1, §4.1.2                  | Same generator as F0; emits the signed object's CID (entry.hash) and a child entry with non-empty `next`. |
 | F5  | `gen-current-state-vector.mjs`      | §4.4.2                          | Three-entry race set + `(clock.time DESC, timestamp DESC, hash ASC)` ordering rule.  |
 | F6  | `gen-network-message-vector.mjs`    | §5.3.2, §5.4.1                  | LoadedAboutEntry inline-content transform + heads message size bound check.          |
-| F7  | `gen-audio-pipeline-smoke.mjs`      | §5.5.1, §6.1, §6.2, §6.4        | fpcalc fingerprint + sha256 track_id + ffmpeg tag-strip + unixfs-v1-2025 audio CID; multi-block CID vector. |
+| F7  | `gen-audio-pipeline-smoke.mjs`      | §5.5.1, §6.1, §6.2, §6.4        | fpcalc fingerprint (checked non-degenerate) + sha256 track_id + ffmpeg tag-strip + unixfs-v1-2025 audio CID; multi-block CID vector. v1.1 replaced the degenerate 440 Hz sine source with a 10 s chirp. |
 | F8  | `gen-library-address-vector.mjs`    | §3.6.1, §3.6.2                  | Address from (key, type, discriminator); `library` reproduces F3; identity library address. (v1.1) |
 | F9  | `gen-meta-log-vector.mjs`           | §4.8.1, §4.8.2                  | Signed identity-library entries: library, link, pin PUTs and a link DEL; current state per (type, key). (v1.1) |
 | F10 | `gen-capability-vector.mjs`         | §3.5.5 – §3.5.10                | Capability, write, revocation; reference verifier with accept, inert, and reject cases, including delegation. (v1.1) |
-| F11 | `gen-fingerprint-vector.mjs`        | §6.1.6, §6.4.1                  | Chromaprint fingerprint decode; degenerate when one value fills 19 in 20 positions; silence (b8702767) and the F7 sine reject, music passes. (v1.1) |
+| F11 | `gen-fingerprint-vector.mjs`        | §6.1.6, §6.4.1                  | Chromaprint fingerprint decode; degenerate when one value fills 19 in 20 positions; silence (b8702767) and the v1.0 sine reject; the v1.1 chirp and music pass. (v1.1) |
 
 ## Toolchain pinning
 
@@ -64,7 +64,7 @@ these versions:
 
 | Tool     | Pinned version | Notes                                                       |
 | -------- | -------------- | ----------------------------------------------------------- |
-| `ffmpeg` | 7.1.1          | Sine-sweep synthesis + tag-strip per §6.2.3 reference flags. |
+| `ffmpeg` | 7.1.1          | Chirp synthesis + tag-strip per §6.2.3 reference flags.      |
 | `fpcalc` | 1.5.1          | Chromaprint algorithm 2; produces the §6.1 fingerprint.      |
 
 `gen-audio-pipeline-smoke.mjs` runs a `-version` preflight on both

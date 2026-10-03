@@ -70,13 +70,14 @@ property: `sha256(fpcalc(tagged))` MUST equal
 tag-stripping operation (§6.2).
 
 **Reference vector.** Against the committed
-`spec/fixtures/audio/sine-sweep-5s.flac` source (5-second 440 Hz sine,
-44.1 kHz, FLAC, bitexact, no metadata; 68127 bytes), the pinned
-toolchain (ffmpeg 7.1.1, fpcalc 1.5.1 / Chromaprint algorithm 2) emits:
+`spec/fixtures/audio/chirp-10s.flac` source (10 seconds of two rising
+tones, 44.1 kHz mono, 16-bit FLAC, bitexact, no metadata; 156783
+bytes), the pinned toolchain (ffmpeg 7.1.1, fpcalc 1.5.1 / Chromaprint
+algorithm 2) emits a fingerprint of 59 values, all distinct:
 
 ```
-fingerprint = AQAAE0mUaEkSZSoAAAAAAAAA
-track_id    = 20599ccf9f5efb8cc1d6e2ae464471f6f8fab82066a42579b07024d7673b1005
+fingerprint = AQAAO9HSRskFaTmP8EezzAze486RpyfSE7ObBPc0_DixJ9QkDfWNRM-Rf_jx46mO_kj6Bcdd7McTQvuRPjLKHKc_JD-iF19jXMV_MFHiwPlxRMqN48Fz42eO5Sc2Pxl-4eGPq4uR20JDyzjc-NjvoHkWMN-ywyfGD-mPZN7RPwBAjAUEIWIINgJwoSQilCgPmBDMeSMAEo4yQhQjUBIiBFRUVAKIAMAwgAAwSKAgBCKAAUIBIAA
+track_id    = 13f92b74d4d33accd2424b87914fbc6d087b7557fb2166330756bdcddcd8b6db
 ```
 
 `spec/fixtures/gen-audio-pipeline-smoke.mjs` regenerates and verifies
@@ -87,10 +88,11 @@ fixture verifies single-machine cross-invocation determinism only;
 cross-machine determinism is a residual known risk documented in
 `spec/fixtures/README.md`.
 
-This vector fixes the fingerprint-to-id derivation, and its id stays
-valid. A steady sine is degenerate under §6.1.6, though, so a v1.1
-ingest of the fixture is rejected at §6.4.1 step 1. A non-degenerate
-replacement source needs the pinned toolchain to regenerate.
+v1.1 replaced the v1.0 source, a 5-second 440 Hz sine. Its
+fingerprint, `AQAAE0mUaEkSZSoAAAAAAAAA` (track id
+`20599ccf9f5efb8cc1d6e2ae464471f6f8fab82066a42579b07024d7673b1005`),
+is one value repeated, so it is degenerate (§6.1.6) and a v1.1 ingest
+would reject it. As a fingerprint-to-id derivation it remains correct.
 
 ### 6.1.6 Degenerate fingerprints
 
@@ -127,15 +129,16 @@ still a valid `acoustid_fingerprint`, and an existing entry carrying
 one keeps its id (§6.1.4).
 
 **Reference vector.** `spec/fixtures/gen-fingerprint-vector.mjs`
-decodes and classifies five fingerprints without running fpcalc. The
-first three are literal fpcalc output (`-json -algorithm 2`). The
+decodes and classifies six fingerprints without running fpcalc. The
+first four are literal fpcalc output (`-json -algorithm 2`). The
 pair is built by the script's encoder, which it first checks against
 those strings.
 
 | Fingerprint                                                    | Values | Distinct | Most common | Degenerate |
 | -------------------------------------------------------------- | ------ | -------- | ----------- | ---------- |
 | silent first 120 s, `AQADtEmUaEkSRZEGAAAA...`, track id `b8702767c27bedd78aad13742796018136471b82d99e931db8304472c3a69304` | 948 | 1 | 948 (1.000) | yes |
-| §6.1.5 sine, `AQAAE0mUaEkSZSoAAAAAAAAA`                        | 19     | 1        | 19 (1.000)  | yes        |
+| v1.0 §6.1.5 sine, `AQAAE0mUaEkSZSoAAAAAAAAA`                   | 19     | 1        | 19 (1.000)  | yes        |
+| §6.1.5 chirp, `AQAAO9HSRskFaTmP8Eez...`                        | 59     | 59       | 1 (0.017)   | no         |
 | a commercial demo track (music)                                | 948    | 786      | 7 (0.007)   | no         |
 | 19 of 20 values equal                                          | 20     | 2        | 19 (0.950)  | yes        |
 | 18 of 20 values equal                                          | 20     | 3        | 18 (0.900)  | no         |
@@ -194,12 +197,12 @@ compliant implementations produces the same CID, enabling cross-peer
 deduplication at the audio layer.
 
 **Reference vector.** Against the committed
-`spec/fixtures/audio/sine-sweep-5s.flac` source under the pinned
+`spec/fixtures/audio/chirp-10s.flac` source under the pinned
 toolchain, the §6.2.3 ffmpeg flags produce a tag-stripped blob of
-68127 bytes with the deterministic content-identity hash:
+156783 bytes with the deterministic content-identity hash:
 
 ```
-sha256(tag-stripped bytes) = 8b96e6aa53240d01736fb444f55ce8184e78d32dfb2013ad48f14c3592308d69
+sha256(tag-stripped bytes) = 030b44581e3f0bc77407faaf3958de78a95b257b1475bf0a65dc4a5df45a750a
 ```
 
 (The source FLAC was authored with `-bitexact -map_metadata -1` so
@@ -215,8 +218,8 @@ The base58btc string is the stored form; the base32 line is the
 same CID, shown for reference only.
 
 ```
-content.hash (stored): zb2rhg3BKZhTYqV2eSH7d2LXvjDdfyJUX9izYRre6NSG4z5WG
-base32 (informative):  bafkreiels3tkuuzebuaxg35uit2vz2ayjz4nglp3eaj22shrjq2zemenne
+content.hash (stored): zb2rhWrAP3dch4trZWGArAEEN8mqFPhsQ2Jojbedxdq8MtCgH
+base32 (informative):  bafkreiadbncfqhr7bpdxib72v44vrxtyvfnsk6yuow7quzo4jjo7iwtvbi
 ```
 
 **Multi-block vector.** Profiles differ once a blob spans more than
@@ -357,7 +360,7 @@ appends; every existing id and entry stays valid.
 
 **End-to-end reference.** `spec/fixtures/gen-audio-pipeline-smoke.mjs`
 exercises steps 1–2 and 6–7 of this pipeline against the committed
-`spec/fixtures/audio/sine-sweep-5s.flac` source under the pinned
+`spec/fixtures/audio/chirp-10s.flac` source under the pinned
 toolchain. The expected fingerprint and `track_id` are embedded in
 §6.1.5; the expected sha256 of the tag-stripped bytes and the
 expected `audio_cid` are embedded in §6.2.4. Steps 3, 4, 5, 8–13 are not exercised by this smoke

@@ -9,14 +9,15 @@
  *   1. the silence fingerprint: what fpcalc -json -algorithm 2 emits for a
  *      silent first 120 s; 172 files of the canonical library share it
  *      (track id b8702767...) — degenerate, a reject case
- *   2. the §6.1.5 F7 sine — also degenerate: a steady tone fingerprints
- *      to one repeated value, like silence
+ *   2. the v1.0 §6.1.5 sine — also degenerate: a steady tone fingerprints
+ *      to one repeated value, like silence; v1.1 replaced it
+ *   2b. the v1.1 §6.1.5 chirp — not degenerate
  *   3. a commercial demo track (Pioneer DJ "Demo Track 1", bundled with
  *      rekordbox), fingerprinted with fpcalc 1.6.1 — not degenerate
  *   4. the threshold pair: 19 of 20 values equal (degenerate) and 18 of
  *      20 (not)
  *
- * Fingerprints 1 to 3 are literal fpcalc output; the pair is built by this
+ * Fingerprints 1 to 3 and 2b are literal fpcalc output; the pair is built by this
  * file's encoder, the inverse of the decoder, which the script first
  * checks against the literal strings. Pure JavaScript; no fpcalc needed.
  */
@@ -123,6 +124,9 @@ const sha256_hex = (s) => createHash('sha256').update(s, 'utf8').digest('hex')
 
 const F7_FINGERPRINT = 'AQAAE0mUaEkSZSoAAAAAAAAA'
 const F7_TRACK_ID = '20599ccf9f5efb8cc1d6e2ae464471f6f8fab82066a42579b07024d7673b1005'
+const CHIRP_FINGERPRINT =
+  'AQAAO9HSRskFaTmP8EezzAze486RpyfSE7ObBPc0_DixJ9QkDfWNRM-Rf_jx46mO_kj6Bcdd7McTQvuRPjLKHKc_JD-iF19jXMV_MFHiwPlxRMqN48Fz42eO5Sc2Pxl-4eGPq4uR20JDyzjc-NjvoHkWMN-ywyfGD-mPZN7RPwBAjAUEIWIINgJwoSQilCgPmBDMeSMAEo4yQhQjUBIiBFRUVAKIAMAwgAAwSKAgBCKAAUIBIAA'
+const CHIRP_TRACK_ID = '13f92b74d4d33accd2424b87914fbc6d087b7557fb2166330756bdcddcd8b6db'
 const SILENCE_FINGERPRINT =
   'AQADtEmUaEkSRZEGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
 const SILENCE_TRACK_ID = 'b8702767c27bedd78aad13742796018136471b82d99e931db8304472c3a69304'
@@ -133,7 +137,8 @@ const equal_of_20 = (k) => [...Array(k).fill(SILENCE_VALUE), ...Array.from({ len
 
 const cases = [
   { label: 'silence (track id b8702767...)', fingerprint: SILENCE_FINGERPRINT, expected: true },
-  { label: '§6.1.5 F7 sine', fingerprint: F7_FINGERPRINT, expected: true },
+  { label: 'v1.0 §6.1.5 sine', fingerprint: F7_FINGERPRINT, expected: true },
+  { label: 'v1.1 §6.1.5 chirp', fingerprint: CHIRP_FINGERPRINT, expected: false },
   { label: 'demo track (music)', fingerprint: MUSIC_FINGERPRINT, expected: false },
   { label: '19 of 20 values equal', fingerprint: encode_fingerprint(equal_of_20(19)), expected: true },
   { label: '18 of 20 values equal', fingerprint: encode_fingerprint(equal_of_20(18)), expected: false }
@@ -149,9 +154,10 @@ const check = (label, ok) => {
 const f7 = decode_fingerprint(F7_FINGERPRINT)
 console.log('F7 decodes to algorithm byte ' + f7.algorithm + ', ' + f7.values.length + ' values, first ' + f7.values[0])
 check('encoder reproduces the F7 string from its decoded values', encode_fingerprint(f7.values, f7.algorithm) === F7_FINGERPRINT)
-check('F7 track id is unchanged (§6.1.5)', sha256_hex(F7_FINGERPRINT) === F7_TRACK_ID)
+check('v1.0 sine track id is unchanged', sha256_hex(F7_FINGERPRINT) === F7_TRACK_ID)
+check('chirp track id matches §6.1.5', sha256_hex(CHIRP_FINGERPRINT) === CHIRP_TRACK_ID)
 check('silence fingerprint hashes to track id b8702767...', sha256_hex(SILENCE_FINGERPRINT) === SILENCE_TRACK_ID)
-for (const [label, fp] of [['silence', SILENCE_FINGERPRINT], ['demo track', MUSIC_FINGERPRINT]]) {
+for (const [label, fp] of [['silence', SILENCE_FINGERPRINT], ['demo track', MUSIC_FINGERPRINT], ['chirp', CHIRP_FINGERPRINT]]) {
   const { algorithm, values } = decode_fingerprint(fp)
   check(`encoder reproduces the ${label} string`, encode_fingerprint(values, algorithm) === fp)
 }

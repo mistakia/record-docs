@@ -62,7 +62,7 @@ const MIXES_LIBRARY = derive_address({ key: K, library_type: 'recordstore', disc
 // §4.8.2 canonical pin form: CIDv1, base32. The §6.2.4 audio CID, stored
 // in content.hash as base58btc, is the same CID.
 const canonical_cid = (s) => CID.parse(s, s.startsWith('z') ? base58btc : undefined).toV1().toString(base32)
-const AUDIO_CID = canonical_cid('zb2rhg3BKZhTYqV2eSH7d2LXvjDdfyJUX9izYRre6NSG4z5WG')
+const AUDIO_CID = canonical_cid('zb2rhWrAP3dch4trZWGArAEEN8mqFPhsQ2Jojbedxdq8MtCgH')
 const T0 = 1700000000000
 
 const operations = [
@@ -133,7 +133,7 @@ const well_formed = ({ op, key, value }) => {
     default: return true
   }
 }
-const base58_pin = 'zb2rhg3BKZhTYqV2eSH7d2LXvjDdfyJUX9izYRre6NSG4z5WG'
+const base58_pin = 'zb2rhWrAP3dch4trZWGArAEEN8mqFPhsQ2Jojbedxdq8MtCgH'
 const malformed = [
   ['pin whose cid is not canonical', { op: 'PUT', key: sha256_hex(base58_pin), value: { type: 'pin', v: 1, timestamp: T0, cid: base58_pin } }],
   ['link whose alias exceeds 128 bytes', { op: 'PUT', key: sha256_hex(FRIEND_LIBRARY), value: { type: 'link', v: 1, timestamp: T0, address: FRIEND_LIBRARY, alias: 'x'.repeat(129) } }]
@@ -152,7 +152,7 @@ const checks = [
   ['every entry decodes back to its signed object', entries.every((e) => cid(decode(e.bytes)) === e.hash)],
   ['records are inline: no envelope content CID', entries.every((e) => !('content' in e.signed.payload.value))],
   ['every chained record is well formed', entries.every((e) => well_formed(e.signed.payload))],
-  ['pin cid equals the §6.2.4 base32 form', AUDIO_CID === 'bafkreiels3tkuuzebuaxg35uit2vz2ayjz4nglp3eaj22shrjq2zemenne'],
+  ['pin cid equals the §6.2.4 base32 form', AUDIO_CID === 'bafkreiadbncfqhr7bpdxib72v44vrxtyvfnsk6yuow7quzo4jjo7iwtvbi'],
   ['own library record is a current PUT', state('library', sha256_hex(OWN_LIBRARY)) === 'PUT'],
   ['friend link is unlinked by the later DEL', state('link', sha256_hex(FRIEND_LIBRARY)) === 'DEL'],
   ['pin record is a current PUT', state('pin', sha256_hex(AUDIO_CID)) === 'PUT'],

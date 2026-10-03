@@ -454,13 +454,13 @@ nine entries into the identity library of the §3.4.5 test key
 | ----- | --------- | ------------ | ------------------------------ |
 | 1     | `library` PUT of the §3.5.1 library | 682 | `zBwWX6yJT8sDseJEr3iaGgYqsKiejaKBizBNPiSDeoV2yXHjkXXqcHL6JYF7xqGy5m9WQT1scdXRmh3BLoq7xp8K7VLZC` |
 | 2     | `link` PUT of test key `k = 2`'s `library`, alias `friend` | 785 | `zBwWX6tGPpW4hsRc5AhPJJhFVopAeJXmjzj9zm1aXrvnoUo9XdGZ2gRiAcmSFdovBmfHnC8rc4ny59uWSrJGAz93gdT1J` |
-| 3     | `pin` PUT of the §6.2.4 audio CID, canonical form | 717 | `zBwWX5Zuqb7EjpMAG2mtyni2tySJx81xqv8EwZjLHHEMbZdqXBdGSLqEEpjKFVMA8uxTkSccYTq3yDgECbdBVkht8ZaPR` |
-| 4     | `link` DEL of entry 2's address | 652 | `zBwWX7RK1SwM6ZJrsL5iZrbva2nzxZq8ZJkFRqLdzTar2LiLdTyBkv12Su9pYAVbdoux2BdEmvvvwcNMvd8WwYxxCdJVU` |
-| 5     | `library` PUT of the own `mixes` library | 775 | `zBwWX5znXoVXjwHimVDfJw61g6DoFcjpyXZk1nG554vMFYTpfhKLbWSP9BEBfHVTFwJ5Ls1ZcCw6yXtonvLhVJiuMN3cU` |
-| 6     | `link` PUT of the same `mixes` address | 772 | `zBwWX6egaQXcs5gPYD3k2JDc1gz2Jovm2XJnDfwgDPi5Nxy7qAv22zeXofMFGyVogkSeAN9rFUbeVrTkjsmx8cR4r6PTg` |
-| 7     | `link` DEL of `mixes` | 652 | `zBwWX7gi62tdfrS25E7pJXWaGN6hBePwyoeX9CmLGhGmAYqDW6Q1AY2Yasv1vey3SKMueQeoSRxew5Ee52JXquhRxgDkD` |
-| 8     | `library` DEL of `mixes` (retire) | 655 | `zBwWX8ne43BXLc3XjtjiTofMTaAabdEE4P3rk2ydewKkeZrCjLiyajS2CxFhsLqbrZYxYrLjyqZAwauFiqKPC59ukUgvz` |
-| 9     | a stray `library` PUT of `mixes` | 773 | `zBwWX9ZJ53V1jnWFhPZQ7vDQMbofNeHKxSNq6zo637S2frXPLmF8oaYohQrusTTMNtQ3yJBwcW3yUKr9KgT9wuysPyC2k` |
+| 3     | `pin` PUT of the §6.2.4 audio CID, canonical form | 719 | `zBwWX7isyhFyCGzkHqmj5XZ4Auq7rss84UsPqtb4LCXsJmJwschU9Nnpn9PkBkFnSNFX2dA8t55QbMFfmyNZUu1HmFkuB` |
+| 4     | `link` DEL of entry 2's address | 650 | `zBwWX94oXV3jxM3ZchvB6FVBDJ6va4BhRvLinaHkaMGKcTrmV5fJDYtJXFGXMxB4Sra39YT1ugrBTrWjAzKtYdTV2RRSE` |
+| 5     | `library` PUT of the own `mixes` library | 775 | `zBwWX8emvUUZidkjMXTqY1FkrL8Z3byJyh3Pvb3GJg613EknTdmNFM2C2yDePJ9q6biMELLiS1bwnirGC1i2NSDctnxit` |
+| 6     | `link` PUT of the same `mixes` address | 772 | `zBwWX8sz9N4cENbiU15tWb1kQUeWuAM1ocugdCCh1kYjjv7r2VVP8pMXXoiKW4YEff8Vkr6LW6Vv1cJ1QHVdH7NfwKQ6n` |
+| 7     | `link` DEL of `mixes` | 652 | `zBwWX9zPbVPvWVdLmxxX3JfEi9iXGsuoP9Q1SnebpU6JKU2SAjMCputjt3DPiNzsE6TAmUYAf7Kh57rJvSbKdHJd5ebGa` |
+| 8     | `library` DEL of `mixes` (retire) | 655 | `zBwWX9m9dkzAdkitjJUAvBDd3zt4n9W2Y2ziGtzU5qnhRJUvNYVBjfggvBV6ZnJfHFPYmKhbh8X8QoiJJKtGx1kvD1qrf` |
+| 9     | a stray `library` PUT of `mixes` | 773 | `zBwWX8M4t6XTCqyoP198pk8KUbJj3N4vWmJ6J5ST4uqsQMCCQmy9RB6p2b1ejNXbSNoVTyvMK42TpSbVMWnSGm4HApgKY` |
 
 After all nine, the §3.5.1 library record and the pin are current
 PUTs, both links are current DELs, and `mixes` is retired. Before

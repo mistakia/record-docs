@@ -8,10 +8,12 @@
  *   (a) Version preflight — fpcalc -version, ffmpeg -version. Abort with
  *       a clear error if the runtime versions don't match the pinned
  *       values in fixtures/README.md `## Toolchain pinning`.
- *   (b) Regenerate the sine sweep from pinned ffmpeg flags into a temp
- *       file, byte-compare against the committed
- *       audio/sine-sweep-5s.flac, abort if drift.
- *   (c) fpcalc -json → fingerprint string → sha256(fingerprint) = track_id
+ *   (b) Regenerate the chirp from pinned ffmpeg flags into a temp
+ *       file, byte-compare against the committed audio/chirp-10s.flac,
+ *       abort if drift. v1.1 replaced the v1.0 440 Hz sine, whose
+ *       fingerprint is one repeated value and so degenerate (§6.1.6).
+ *   (c) fpcalc -json -algorithm 2 → fingerprint string, checked
+ *       non-degenerate → sha256(fingerprint) = track_id
  *       → ffmpeg tag-strip (§6.2.3 reference flags) → sha256 of tag-
  *       stripped bytes = audio identity.
  *   (d) Import the tag-stripped bytes with the §5.5.1 content import
@@ -39,19 +41,22 @@ import { importer } from 'ipfs-unixfs-importer'
 import { base58btc } from 'multiformats/bases/base58'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const AUDIO_PATH = join(HERE, 'audio', 'sine-sweep-5s.flac')
+const AUDIO_PATH = join(HERE, 'audio', 'chirp-10s.flac')
 
 const PINNED = {
   ffmpeg: '7.1.1',
   fpcalc: '1.5.1'
 }
 
-const SINE_FLAGS = [
+// Two rising tones, so the chroma, and with it the fingerprint, changes
+// frame to frame.
+const SOURCE_FLAGS = [
   '-y',
   '-hide_banner',
   '-loglevel', 'error',
   '-f', 'lavfi',
-  '-i', 'sine=frequency=440:duration=5:sample_rate=44100',
+  '-i', "aevalsrc=exprs='0.4*sin(2*PI*(220*t+55*t*t))+0.2*sin(2*PI*(330*t+30*t*t))':s=44100:d=10",
+  '-sample_fmt', 's16',
   '-bitexact',
   '-c:a', 'flac',
   '-map_metadata', '-1'
@@ -92,27 +97,27 @@ function preflight() {
 function regenerateAndCompare() {
   if (!existsSync(AUDIO_PATH)) {
     // First run — author mode: generate and commit the source.
-    console.log('audio/sine-sweep-5s.flac not present; generating from pinned flags.')
-    const r = run('ffmpeg', [...SINE_FLAGS, AUDIO_PATH])
+    console.log('audio/chirp-10s.flac not present; generating from pinned flags.')
+    const r = run('ffmpeg', [...SOURCE_FLAGS, AUDIO_PATH])
     if (r.code !== 0) {
-      console.error('FAIL: ffmpeg sine synthesis failed:\n' + r.stderr)
+      console.error('FAIL: ffmpeg chirp synthesis failed:\n' + r.stderr)
       process.exit(1)
     }
     return readFileSync(AUDIO_PATH)
   }
   const committed = readFileSync(AUDIO_PATH)
   const tmp = mkdtempSync(join(tmpdir(), 'f7-regen-'))
-  const out = join(tmp, 'sine.flac')
-  const r = run('ffmpeg', [...SINE_FLAGS, out])
+  const out = join(tmp, 'chirp.flac')
+  const r = run('ffmpeg', [...SOURCE_FLAGS, out])
   if (r.code !== 0) {
     rmSync(tmp, { recursive: true, force: true })
-    console.error('FAIL: ffmpeg sine regeneration failed:\n' + r.stderr)
+    console.error('FAIL: ffmpeg chirp regeneration failed:\n' + r.stderr)
     process.exit(1)
   }
   const regen = readFileSync(out)
   rmSync(tmp, { recursive: true, force: true })
   if (committed.length !== regen.length || !committed.equals(regen)) {
-    console.error('FAIL: regenerated sine sweep differs from committed audio/sine-sweep-5s.flac')
+    console.error('FAIL: regenerated chirp differs from committed audio/chirp-10s.flac')
     console.error(`  committed length: ${committed.length}`)
     console.error(`  regenerated length: ${regen.length}`)
     process.exit(1)
@@ -121,7 +126,7 @@ function regenerateAndCompare() {
 }
 
 function fpcalcFingerprint(path) {
-  const r = run('fpcalc', ['-json', path])
+  const r = run('fpcalc', ['-json', '-algorithm', '2', path])
   if (r.code !== 0) {
     console.error('FAIL: fpcalc failed:\n' + r.stderr)
     process.exit(1)
@@ -168,6 +173,46 @@ async function importCid(bytes, options) {
   return root
 }
 
+// §6.1.6: decode the Chromaprint string and count its most common value.
+function mostCommonShare(fingerprint) {
+  const bytes = Buffer.from(fingerprint.replace(/-/g, '+').replace(/_/g, '/'), 'base64')
+  const count = (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]
+  const body = bytes.subarray(4)
+  const read = (pos, width) => {
+    let v = 0
+    for (let k = 0; k < width; k++) v |= ((body[(pos + k) >> 3] >> ((pos + k) & 7)) & 1) << k
+    return v
+  }
+  const normal = []
+  let pos = 0
+  for (let ends = 0; ends < count; pos += 3) {
+    const v = read(pos, 3)
+    normal.push(v)
+    if (v === 0) ends++
+  }
+  let exceptionPos = Math.ceil(pos / 8) * 8
+  const counts = new Map()
+  let previous = 0
+  let xor = 0
+  let lastBit = 0
+  for (let v of normal) {
+    if (v === 7) {
+      v += read(exceptionPos, 5)
+      exceptionPos += 5
+    }
+    if (v === 0) {
+      previous = (previous ^ xor) >>> 0
+      counts.set(previous, (counts.get(previous) ?? 0) + 1)
+      xor = 0
+      lastBit = 0
+    } else {
+      lastBit += v
+      xor = (xor | (1 << (lastBit - 1))) >>> 0
+    }
+  }
+  return { count, distinct: counts.size, mostCommon: Math.max(...counts.values()) }
+}
+
 function sha256Hex(bytes) {
   const h = createHash('sha256')
   h.update(bytes)
@@ -177,6 +222,7 @@ function sha256Hex(bytes) {
 preflight()
 regenerateAndCompare()
 const fingerprint = fpcalcFingerprint(AUDIO_PATH)
+const shape = mostCommonShare(fingerprint)
 const trackId = sha256Hex(Buffer.from(fingerprint, 'utf8'))
 const strippedBytes = tagStrip(AUDIO_PATH)
 const audioIdentity = sha256Hex(strippedBytes)
@@ -185,11 +231,11 @@ const synth = synthBytes(SYNTH_BYTES)
 const synthCid = await importCid(synth, IMPORT_PROFILE)
 const synthLegacyChunkCid = await importCid(synth, { cidVersion: 1, rawLeaves: true })
 
-const EXPECTED_FP = 'AQAAE0mUaEkSZSoAAAAAAAAA'
-const EXPECTED_TRACK_ID = '20599ccf9f5efb8cc1d6e2ae464471f6f8fab82066a42579b07024d7673b1005'
-const EXPECTED_AUDIO_IDENTITY = '8b96e6aa53240d01736fb444f55ce8184e78d32dfb2013ad48f14c3592308d69'
+const EXPECTED_FP = 'AQAAO9HSRskFaTmP8EezzAze486RpyfSE7ObBPc0_DixJ9QkDfWNRM-Rf_jx46mO_kj6Bcdd7McTQvuRPjLKHKc_JD-iF19jXMV_MFHiwPlxRMqN48Fz42eO5Sc2Pxl-4eGPq4uR20JDyzjc-NjvoHkWMN-ywyfGD-mPZN7RPwBAjAUEIWIINgJwoSQilCgPmBDMeSMAEo4yQhQjUBIiBFRUVAKIAMAwgAAwSKAgBCKAAUIBIAA'
+const EXPECTED_TRACK_ID = '13f92b74d4d33accd2424b87914fbc6d087b7557fb2166330756bdcddcd8b6db'
+const EXPECTED_AUDIO_IDENTITY = '030b44581e3f0bc77407faaf3958de78a95b257b1475bf0a65dc4a5df45a750a'
 // base58btc is the stored form (§2.4.1).
-const EXPECTED_AUDIO_CID = 'zb2rhg3BKZhTYqV2eSH7d2LXvjDdfyJUX9izYRre6NSG4z5WG'
+const EXPECTED_AUDIO_CID = 'zb2rhWrAP3dch4trZWGArAEEN8mqFPhsQ2Jojbedxdq8MtCgH'
 const EXPECTED_SYNTH_CID = 'zdj7WZqdXsKQ1j19s9xaxhLp5oFvFF51WaWK7BVLgbZvB46n5'
 
 console.log('\n=== §6.1.5 + §6.2.4 + §6.4.1 Audio Pipeline Smoke ===\n')
@@ -197,6 +243,7 @@ console.log('Source: ' + AUDIO_PATH)
 console.log('Source bytes: ' + readFileSync(AUDIO_PATH).length)
 console.log('\nfpcalc fingerprint string:')
 console.log('  ' + fingerprint)
+console.log(`Decoded values: ${shape.count}, distinct ${shape.distinct}, most common ${shape.mostCommon}`)
 console.log('Track ID = sha256(fingerprint UTF-8 bytes):')
 console.log('  ' + trackId)
 console.log('Tag-stripped bytes: ' + strippedBytes.length)
@@ -214,6 +261,7 @@ console.log('  ' + synthLegacyChunkCid.toString())
 
 const checks = [
   ['fingerprint string matches embedded expected', fingerprint === EXPECTED_FP],
+  ['fingerprint is not degenerate (§6.1.6)', shape.count > 0 && 20 * shape.mostCommon < 19 * shape.count],
   ['track_id matches embedded expected', trackId === EXPECTED_TRACK_ID],
   ['audio-identity sha256 matches embedded expected', audioIdentity === EXPECTED_AUDIO_IDENTITY],
   ['audio CID matches embedded expected', audioCid.toString(base58btc) === EXPECTED_AUDIO_CID],
