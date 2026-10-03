@@ -8,13 +8,21 @@ description: >-
 base_uri: user:repository/active/record-docs/ABOUT.md
 created_at: '2026-05-13T18:04:49.226Z'
 entity_id: 6ce68bb3-e673-474d-8227-54baf6838c8f
+observations:
+  - >-
+    [finding] 2026-10-03 Three errata await a record-docs v1.1.1. spec/1-overview.md reads Status
+    v1.1.0-draft at the v1.1.0 tag. §3.6.1 and chapter 7 own_library_address name record-node's v1.0
+    own library 'library', but record-node names it 'record'. Chapter 7 has no response for a
+    resolver failure on a public URL (yt-dlp unavailable format, upstream 404, missing binary), so
+    record-node answers 500 on /resolve and /import/url; a 502-class or 422 code carrying the
+    resolver's error code is wanted, then the matching record-node change.
 owner_identity_uri: user:identity/trashman.md
 public_read: false
 relations:
   - follows [[user:guideline/directory-markdown-standards.md]]
 tags:
   - user:tag/record-project.md
-updated_at: '2026-05-13T18:04:49.226Z'
+updated_at: '2026-10-03T18:01:29.722Z'
 ---
 
 ## Purpose
