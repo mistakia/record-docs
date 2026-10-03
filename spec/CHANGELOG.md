@@ -1,5 +1,9 @@
 # Record Protocol Specification — Changelog
 
+## v1.0.5 — 2026-10-02
+
+Erratum, no vector change. The chapter 7 `ResolverEntry` schema, which declares itself the canonical §2.4.2 shape, named the duration field `duration_seconds` where §2.4.2 names it `duration`. The schema now uses `duration`. The flattened `Track` view keeps `duration_seconds`, since it is an API projection rather than the §2.4.2 object.
+
 ## v1.0.4 — 2026-10-02
 
 Erratum, no vector change. §2.4.1 typed `content.hash` and `content.artwork` as `<CID>` while the published F2 vector stores `hash` as a base58btc string and §2.1 makes base58btc the CID encoding in entries. Both fields are now base58btc CID strings, which §5.5.1 and §6.2.4 restate as the stored form; readers still accept any valid CID string. §2.2.1 notes that the F2 `hash` is a placeholder, not a profile-conformant audio CID. F7 asserts the base58btc form, with base32 printed as an informative equivalent.
