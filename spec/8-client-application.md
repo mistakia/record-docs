@@ -219,7 +219,15 @@ The application invokes the bundled-node executable with normative arguments:
 - `--port <port>`: the loopback port the node binds to.
 - `--data-dir <path>`: the data directory the node uses for its logs, blobs,
   derived state, and identity keypair.
-- `--loopback-only`: the node MUST bind only to `127.0.0.1` per §8.7.2.
+
+**Loopback bind.** The bundled node's HTTP and WebSocket API MUST bind only
+to loopback (§8.7.2). The application MUST launch it with configuration
+that pins this: it MUST NOT pass or leave in place any setting that widens
+the API bind. record-node, for example, binds its API to `127.0.0.1` by
+default and widens it only through a configured `host`, so the application
+leaves `host` unset or sets it to `127.0.0.1`. The rule covers the API
+listener only. The node's peer-to-peer (libp2p) listener is not loopback:
+the bundled node must reach peers to replicate (§5).
 
 Additional arguments (logging level, advanced tuning) are
 implementation-defined and MUST NOT contradict the above.
@@ -265,16 +273,28 @@ application restarts.
 
 On OS-level force quit, the application MUST register a process-exit signal
 handler that sends `SIGTERM`/`SIGKILL` synchronously. Full force-quit may
-leak the child, in which case the next application startup MUST detect a
-stale data-directory lock file (per §8.4.6) and either reuse it or terminate
-the orphan before spawning a new child.
+leak the child. The next startup's spawn then fails on the node's
+data-directory lock (§8.4.6), and the application MUST either reuse the
+orphan or terminate it before spawning a new child.
 
 ### 8.4.6 Data directory and lock file
 
-- The bundled node MUST hold an exclusive lock on its data directory while
-  running. Two bundled nodes MUST NOT share a data directory.
-- On startup, the application MUST detect a stale lock (lock file present
-  but holding PID not alive) and clean it up before spawning a new child.
+- The node owns the lock. A node MUST take an exclusive lock on its data
+  directory before opening anything in it, and hold it while running. A
+  node that cannot take the lock MUST exit with a distinct error and leave
+  the directory untouched. Locking in the node protects the directory
+  against every client and every command-line run alike, not only this
+  application.
+- The lock MUST be one the operating system releases when the holding
+  process dies, such as an advisory lock on a file in the directory. A
+  crashed node therefore leaves no stale lock, and a held lock always
+  means a live process.
+- The application relies on the node's lock and keeps none of its own.
+  When a spawn fails on the lock, the holder is most likely an orphan of
+  this application (§8.4.5). The application MAY record the PID of each
+  child it spawns so that it can find and terminate such an orphan.
+- Two bundled nodes MUST NOT share a data directory; the node's lock
+  enforces this.
 - The application MUST NOT attempt to share a data directory between bundled
   and remote mode. The bundled node's data directory is private to the
   bundled mode of this specific application installation.

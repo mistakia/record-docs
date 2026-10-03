@@ -12,7 +12,7 @@ Minor version, per task `user:task/record/record-protocol-v1-1-multi-library-and
 - **Forward compatibility.** §4.4.1 has a v1.1 receiver merge an owner-signed PUT of an unknown record type with no state effect, and §4.8.2 does the same for identity-library records.
 - **Chapter 7** is version 1.1.0: `library_address` and `capability_id` on writes, own-library create and retire, capability issue, revoke, and list, held capabilities, identity-library read, replication policy, pins, `Library.heads`, bearer auth on REST and the `bearer.<token>` WebSocket subprotocol with the query-parameter token removed, and events for identity-library, capability, and inert-entry changes. A capability's `expired` status is advisory. `GET /identity` returns the public key in compressed form, so clients never call `/identity/export` to display it (§8.5.7 now forbids that outside an explicit export). `Library.connected` reports whether replication is running or paused.
 - **Vectors.** F7's source is now a 10-second chirp, regenerated under the pinned toolchain. New: F8 address derivation, F9 identity-library entries, F10 capability verification with a reference verifier (327 cases, including head fan-out and interacting revocations), F11 degenerate fingerprints including the real silence fingerprint shared by 172 files of a deployed library.
-- **Chapter 8** refers to the normative sections instead of restating them.
+- **Chapter 8** refers to the normative sections instead of restating them. §8.4.2 drops the `--loopback-only` flag: the bundled node's HTTP and WebSocket API MUST bind only to loopback under configuration the client pins, and the libp2p listener is excluded so the node can replicate. §8.4.6 moves the data-directory lock to the node: the node MUST hold an exclusive lock that the OS releases on process death, and the client relies on it rather than keeping its own lock file.
 
 ### Implementation notes
 
@@ -20,6 +20,7 @@ For record-node, when it adopts v1.1:
 
 - `merge_entries` verifies a batch before inserting it. Under the §4.2 clock check, an entry whose parents arrive in the same batch needs them verified first, so the batch must be verified in topological order.
 - `test/conformance/merge-ordering.test.ts` merges entries shaped like the §4.4.2 race set, with empty `next` and clock times above 1. They fail the clock check; the test needs real `next` chains.
+- The node takes no data-directory lock. §8.4.6 requires one, taken before opening anything in the directory and released by the OS on process death, with a distinct error and exit when it is already held. record-app's own lock file can then go.
 - `append_entry` cites every head. It must cite at most 256, the highest clocks first (§4.2), or a grantee leaving 257 heads makes every owner write fail with `size_exceeded`.
 
 ## v1.0.6 — 2026-10-03
