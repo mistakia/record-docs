@@ -1,5 +1,18 @@
 # Record Protocol Specification — Changelog
 
+## Unreleased — v1.1.0
+
+Minor version, per task `user:task/record/record-protocol-v1-1-multi-library-and-capabilities.md`. Every v1.0 library, entry, address, track id, and vector stays valid. New entry kinds are additive, and §3.5.11 and §4.8.6 state what a v1.0 peer does with each.
+
+- **Multi-library per identity.** §3.6.1 names the manifest `name` the library discriminator and derives the address from the key, library type, and discriminator; a v1.0 single-key library already has that address. §3.6.2 derives the identity library address from the key alone. §4.8 defines the identity library, of the new type `identity`: `library`, `link`, and `pin` records, current state per type and key, owned-library verification, retirement, and replication across the identity's devices. New links go there. A v1.0 Log entry still links its address when the identity library has no `link` record for it.
+- **Capabilities.** §3.5.5 to §3.5.10 define capability and revocation records in recordstore libraries, GranteeSpec, the action vocabulary, FilterSpec (moved from §8.6.6), the `expires_at` condition, verification with delegation chains, and revocation. Revocation is not retroactive and is judged by causal order: later or concurrent entries under a revoked capability become inert rather than dropped. Unknown type values fail closed. §2.8.1 adds `capability_id` to PUT, and §4.4 and §4.5 skip inert entries. A v1.0 peer stops advancing a library at its first capability record (§3.5.11).
+- **Replication policy and pins.** §4.6.1 makes `full`, `selective`, and `index_only` node-local per-library configuration over audio and artwork, with `full` the default, and defines the track view a selective filter reads. §4.6.2 makes identity-library pins binding on every device of the identity. §5.4.6 bounds content fetches.
+- **Track-id collisions.** §6.1.6 defines a degenerate fingerprint: empty, or fewer than 1 in 20 subfingerprint values non-zero. §6.4.1 rejects ingesting one, and refuses an ingest whose existing entry's duration differs by more than 30 seconds. Existing ids are unchanged.
+- **Forward compatibility.** §4.4.1 has a v1.1 receiver merge an owner-signed PUT of an unknown record type with no state effect, and §4.8.2 does the same for identity-library records.
+- **Chapter 7** is version 1.1.0: `library_address` and `capability_id` on writes, own-library create and retire, capability issue, revoke, and list, held capabilities, identity-library read, replication policy, pins, `Library.heads`, bearer auth on REST and the `bearer.<token>` WebSocket subprotocol with the query-parameter token removed, and events for identity-library, capability, and inert-entry changes.
+- **Vectors.** F8 address derivation, F9 identity-library entries, F10 capability verification with a reference verifier, F11 degenerate fingerprints.
+- **Chapter 8** refers to the normative sections instead of restating them.
+
 ## v1.0.6 — 2026-10-03
 
 Erratum, no vector change. §8.7.5 said the node's API spec defines an explicit CORS allowlist including known clients, and no chapter defined either. §8.7.5 now requires the node to refuse with 403 a request or WebSocket upgrade from an origin off its allowlist, and defines the known-client default allowlist, used when the operator configures none, as empty at v1. An operator-configured list, including an empty one, replaces the default, and the origin `null` is never allowed. A renderer-based client reaches the node from its main process, which sends no `Origin` (§8.10.7).

@@ -1,7 +1,7 @@
 # Record Protocol Specification — Overview
 
 **Version**: 1
-**Status**: v1.0.6
+**Status**: v1.1.0-draft
 
 ## 1.1 Introduction
 
