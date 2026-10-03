@@ -62,7 +62,7 @@ this chapter governs client behavior against a node.
    provide global search, recommendations, or any feature requiring
    participation beyond the user's own peer graph.
 7. **Shared libraries with multiple writers are deferred to v1.1.** The
-   protocol's capability primitive (§3) enables shared write; v1 of this
+   protocol's capability primitive (§3.5.5) enables shared write; v1 of this
    chapter assumes that primitive but the UX may land in v1.1.
 
 ## 8.2 Application surface and packaging
@@ -398,8 +398,7 @@ The application's identity surface shows:
 - A truncated form for inline display (first 6 + last 6 of the hex).
 - The current node's URL (so the user distinguishes bundled from remote at
   a glance).
-- The set of own libraries owned by this identity (per the multi-library
-  amendment).
+- The set of own libraries owned by this identity (§4.8.3).
 - Last-known export action timestamp.
 - A **key-holder indicator**: in bundled mode displays "this device"; in
   remote mode displays "the node at `<url>`" with explicit framing that the
@@ -413,7 +412,7 @@ The application surfaces three categories of library:
 
 - **Own libraries.** Libraries owned by the identity the connected node
   holds. The identity may own one or many; all are writable without explicit
-  capabilities (the owner shortcut of the protocol's verification rules).
+  capabilities (the owner shortcut of §3.5.4).
 - **Shared libraries.** Libraries owned by other identities where this
   identity holds at least one active write capability. Writable to the extent
   the capability's actions, filters, and conditions permit.
@@ -474,15 +473,21 @@ Write categories:
 libraries MUST expose a target-library selector. The default is
 implementation-defined; recommended: most-recently-active writable library.
 
-**Listens.** Listens land in a designated own library (a user-marked primary
-or the most-recently-active own library when none is marked). Listens MUST
-NOT be written to shared libraries.
+**Listens.** Listens land in the identity's listens library (§4.8.3), which
+takes no write target. Listens MUST NOT be written to shared libraries.
 
 **Identity meta-log writes.** Creating a new own library, retiring an own
-library, linking, unlinking, and pinning are identity-meta-log writes. These
-are owner-implicit and require no capability.
+library, linking, unlinking, and pinning are identity-meta-log writes
+(§4.8). These are owner-implicit and require no capability.
+
+Chapter 7 states how a write names its target and capability, and which
+target applies when the application omits one.
 
 ### 8.6.4 Capability management
+
+Capabilities, their action vocabulary, conditions, verification, and
+revocation are normative in §3.5.5–§3.5.11. This section states the
+application's obligations only.
 
 The application provides a capability management surface accessible from
 each library's settings (for owned libraries) and from the identity surface
@@ -495,12 +500,12 @@ each library's settings (for owned libraries) and from the identity surface
 - Issue a new capability:
   - Select grantee: a single identity (pubkey) or a set of identities.
   - Select actions from the protocol's action vocabulary.
-  - Optionally add a filter using the FilterSpec primitive (§8.6.6).
+  - Optionally add a filter using the FilterSpec primitive (§3.5.7).
   - Optionally add conditions (v1 UI exposes `expires_at`).
 - Revoke an active capability: one-click action with explicit confirmation.
   The application MUST warn that revocation invalidates entries written
   after the revoke under that capability (the capability is not
-  retroactively void for already-cited entries).
+  retroactively void for already-cited entries; §3.5.10).
 
 **For capabilities this identity holds from others:**
 
@@ -521,8 +526,8 @@ each library's settings (for owned libraries) and from the identity surface
 
 ### 8.6.5 Link and unlink
 
-Linking and unlinking write to the identity meta-log. The link is durable
-state replicated with the identity.
+Linking and unlinking write to the identity meta-log (§4.8.4). The link is
+durable state replicated with the identity.
 
 - Linking does NOT immediately fetch content. After linking, the node begins
   replication subject to the configured replication policy (§8.6.5a). The
@@ -537,13 +542,16 @@ state replicated with the identity.
 
 ### 8.6.5a Replication policy
 
+The modes, the default, and pins are normative in §4.6.1 and §4.6.2, and
+the endpoints in chapter 7. This section restates them for the application.
+
 For each linked library, the application maintains a per-node replication
 policy with three modes:
 
 - **`index_only`**: log replicated; no audio proactively fetched. Playback
   fetches audio on-demand from peers, subject to a node-side LRU cache.
 - **`selective`**: log replicated; audio for entries matching a FilterSpec
-  filter (§8.6.6) is proactively fetched and retained. Audio not matching
+  filter (§3.5.7) is proactively fetched and retained. Audio not matching
   the filter behaves as `index_only`.
 - **`full`**: log replicated; all audio proactively fetched and retained.
 
@@ -573,35 +581,22 @@ and MUST surface a one-action mode-change affordance.
 - `GET /libraries/{address}/replication-policy` returns `{mode, filter?,
   connected}`.
 - `PUT /libraries/{address}/replication-policy` sets the policy.
-- `POST /tracks/{cid}/pin` / `DELETE /tracks/{cid}/pin` for pin/unpin.
+- `POST /tracks/{cid}/pin` / `DELETE /tracks/{cid}/pin` for pin/unpin, where
+  `cid` is the track's audio CID.
 
 ### 8.6.6 FilterSpec primitive
 
 A `FilterSpec` is a recursive predicate used by both capability scoping
-(§8.6.4) and selective replication policy (§8.6.5a). v1 vocabulary:
+(§8.6.4) and selective replication policy (§8.6.5a). Its node types,
+evaluation, and fail-closed rule are normative in §3.5.7.
 
-- `match`: equality on one or more named fields.
-- `any_of`: a field's value is in a set.
-- `range`: numeric or timestamp range on a field (`gte`, `lte`, `gt`, `lt`).
-- `and`: all sub-filters match.
-- `or`: any sub-filter matches.
-- `not`: the sub-filter does not match.
+The filterable fields depend on the consumer:
 
-`field_path` is a dot-separated accessor against the target object's shape.
-Value scalars are JSON scalars; collections (e.g. `tags`) follow membership
-semantics for `match` and intersection semantics for `any_of`.
+- Selective replication: the track view of §4.6.1.
+- Capability scoping: the filter subject of each action, per §3.5.6.
 
-**Forward-compatibility.** New `type` values may be added in future versions
-(`regex`, `full_text`, `contains`, `starts_with`, `ends_with`,
-`field_exists`, etc.). Verifiers and replicators that encounter an unknown
-`type` MUST treat the filter as failing closed.
-
-**Filterable-field vocabulary** is consumer-specific:
-
-- Selective replication: track entry attributes (`tags`, `source`,
-  `audio_size_bytes`, `duration_seconds`, `added_at`, `artist`, `title`,
-  `cid`, `library_address`, `added_by`).
-- Capability scoping: action parameters, per action verb.
+The application's filter editor (§8.9.1) builds FilterSpecs for both, and
+renders node types it does not recognise as opaque labels (§8.6.4).
 
 ### 8.6.7 Multi-library aggregation
 
@@ -644,7 +639,8 @@ default to a single target when the user has multiple writable libraries.
 - **Capability revocation lag.** When a library owner revokes a capability,
   the revoke entry propagates via replication. A holder writing between the
   revoke entry's creation and their own node observing it may have writes
-  accepted locally but later invalidated. The application MUST surface this
+  accepted locally but later invalidated: they become inert (§3.5.10), and
+  the node emits `library:entries-inert`. The application MUST surface this
   to the user when it occurs.
 - **Capability expiration.** Writes attempted under an expired capability
   MUST be rejected by the local node and surfaced as "the capability
@@ -747,8 +743,9 @@ makes every node request on the renderer's behalf (§8.10.7).
 
 ### 8.7.6 Endpoint surface consumed
 
-The application consumes the HTTP/WS API defined in protocol §7 with the
-multi-library and capability extensions of §3, §4. No subset; no additional
+The application consumes the HTTP/WS API defined in protocol §7
+(`7-http-api.yaml`, v1.1.0). Its multi-library, capability, and replication
+endpoints implement §3.5.5–§3.5.11, §4.6, and §4.8. No subset; no additional
 endpoints beyond the spec.
 
 The application MUST gracefully handle endpoints returning 404 (the node may
@@ -762,9 +759,11 @@ application↔node version-skew tolerance in remote mode (§8.2.7).
   maintains it for the application's lifetime.
 - **Authentication on WebSocket.** In remote mode, the application presents
   its bearer token via the `Sec-WebSocket-Protocol` header (specifically, a
-  subprotocol of the form `bearer.<token>`). Query-parameter token-passing
-  is forbidden — query parameters are routinely logged by HTTP
-  infrastructure. Bundled mode does not require WS authentication.
+  subprotocol of the form `bearer.<token>`, offered alongside `record`, which
+  the node selects). Chapter 7's `x-websocket-events` states the exchange.
+  Query-parameter token-passing is forbidden — query parameters are
+  routinely logged by HTTP infrastructure. Bundled mode does not require WS
+  authentication.
 - The application MUST handle disconnects via exponential-backoff reconnect
   (starting at 1s, capping at 30s, with jitter), with the connection state
   visible in the UI.
@@ -904,7 +903,8 @@ reflect the new state.
 
 **Periodic and on-reconnect head-check.** On every successful connection and
 every 5 minutes during normal operation, the application issues a head-check
-query: asks the node for the current log head of each linked library,
+query: asks the node for the current log heads of each linked library (the
+`heads` of chapter 7's `Library`),
 compares to the snapshot's last-known heads, and refetches any library whose
 head has advanced. This defends against missed WebSocket events between
 disconnect and reconnect.
