@@ -87,6 +87,34 @@ fixture verifies single-machine cross-invocation determinism only;
 cross-machine determinism is a residual known risk documented in
 `spec/fixtures/README.md`.
 
+### 6.1.6 Degenerate fingerprints
+
+A Chromaprint fingerprint string encodes a sequence of 32-bit
+subfingerprint values, one per short frame of decoded audio; `fpcalc
+-raw` prints the same sequence. Silent frames yield the value 0, so
+every file whose fingerprinted window is silent has the same
+fingerprint string, and therefore the same track id, whatever audio
+follows the window.
+
+A fingerprint is **degenerate** when its decoded sequence is empty,
+or when fewer than 1 in 20 of its values are non-zero:
+
+```
+degenerate = (n == 0) or (20 * count(value != 0) < n)
+```
+
+Decoding follows Chromaprint's compressed-fingerprint format. The
+string is URL-safe base64 without padding. It decodes to one
+algorithm byte, a 24-bit big-endian value count `n`, then each
+value's XOR with its predecessor as 3-bit packed bit-position deltas
+ending in 0, then 5-bit packed overflow for deltas of 7 or more. An
+implementation MAY instead take the values from its fingerprinting
+tool, provided they equal the decoded string's.
+
+Degeneracy is a writer rule (§6.4.1). A degenerate fingerprint is
+still a valid `acoustid_fingerprint`, and an existing entry carrying
+one keeps its id (§6.1.4).
+
 ## 6.2 Tag stripping
 
 ### 6.2.1 Requirement
@@ -245,10 +273,16 @@ The canonical ingest path for a local audio file is:
    MUST reject the ingest if the fingerprinter returns an empty
    string, an error exit, or a file with no decodable audio
    stream. A subsequent `sha256("")` MUST NOT be used as a
-   fall-back track id.
+   fall-back track id. From v1.1, implementations MUST also reject
+   the ingest if the fingerprint is degenerate (§6.1.6).
 2. Compute `track_id = sha256(fingerprint)`.
 3. If an entry with this id already exists in the target library,
-   return it and stop.
+   compare durations: parse the file's audio duration as in step 4,
+   and read the existing entry's `content.audio.duration`. If both
+   are known and differ by more than 30 seconds, the implementation
+   MUST reject the ingest as a track-id collision, MUST NOT append or
+   replace any entry, and SHOULD report the existing entry's id.
+   Otherwise, return the existing entry and stop.
 4. Parse metadata with a metadata-extraction library. If the
    reported audio duration is `0`, unknown, or the decoded sample
    count is zero, the implementation MUST reject the ingest.
@@ -274,6 +308,18 @@ The canonical ingest path for a local audio file is:
     e. Signs and appends the oplog entry.
     f. Pins the oplog entry hash non-recursively.
 14. Clean up the temporary tag-stripped file.
+
+**Track-id collisions.** Chromaprint fingerprints only the opening of
+a file, 120 seconds under fpcalc's default length (§6.1.2), so a mix
+and its opening track, or a track and its truncated copy, can share
+a fingerprint and an id. The id derivation cannot change without
+invalidating v1.0 ids (§2.10), and a library holds one current entry
+per id, so a colliding ingest can only replace the existing entry or
+refuse. Replacing would silently swap one recording for another, so
+step 3 refuses and the collision surfaces. Durations within 30
+seconds count as the same recording, which absorbs encoder padding
+and container differences. Steps 1 and 3 change only what a writer
+appends; every existing id and entry stays valid.
 
 **End-to-end reference.** `spec/fixtures/gen-audio-pipeline-smoke.mjs`
 exercises steps 1–2 and 6–7 of this pipeline against the committed
