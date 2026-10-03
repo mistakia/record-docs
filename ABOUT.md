@@ -8,13 +8,13 @@ description: >-
 base_uri: user:repository/active/record-docs/ABOUT.md
 created_at: '2026-05-13T18:04:49.226Z'
 entity_id: 6ce68bb3-e673-474d-8227-54baf6838c8f
+owner_identity_uri: user:identity/trashman.md
 public_read: false
 relations:
   - follows [[user:guideline/directory-markdown-standards.md]]
 tags:
   - user:tag/record-project.md
 updated_at: '2026-05-13T18:04:49.226Z'
-user_public_key: 10ba842b1307fd60475b887df61ccc7e697970a2d222e7cbf011e51f5de3349b
 ---
 
 ## Purpose
