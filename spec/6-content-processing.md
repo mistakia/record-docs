@@ -70,13 +70,14 @@ property: `sha256(fpcalc(tagged))` MUST equal
 tag-stripping operation (§6.2).
 
 **Reference vector.** Against the committed
-`spec/fixtures/audio/sine-sweep-5s.flac` source (5-second 440 Hz sine,
-44.1 kHz, FLAC, bitexact, no metadata; 68127 bytes), the pinned
-toolchain (ffmpeg 7.1.1, fpcalc 1.5.1 / Chromaprint algorithm 2) emits:
+`spec/fixtures/audio/chirp-10s.flac` source (10 seconds of two rising
+tones, 44.1 kHz mono, 16-bit FLAC, bitexact, no metadata; 156783
+bytes), the pinned toolchain (ffmpeg 7.1.1, fpcalc 1.5.1 / Chromaprint
+algorithm 2) emits a fingerprint of 59 values, all distinct:
 
 ```
-fingerprint = AQAAE0mUaEkSZSoAAAAAAAAA
-track_id    = 20599ccf9f5efb8cc1d6e2ae464471f6f8fab82066a42579b07024d7673b1005
+fingerprint = AQAAO9HSRskFaTmP8EezzAze486RpyfSE7ObBPc0_DixJ9QkDfWNRM-Rf_jx46mO_kj6Bcdd7McTQvuRPjLKHKc_JD-iF19jXMV_MFHiwPlxRMqN48Fz42eO5Sc2Pxl-4eGPq4uR20JDyzjc-NjvoHkWMN-ywyfGD-mPZN7RPwBAjAUEIWIINgJwoSQilCgPmBDMeSMAEo4yQhQjUBIiBFRUVAKIAMAwgAAwSKAgBCKAAUIBIAA
+track_id    = 13f92b74d4d33accd2424b87914fbc6d087b7557fb2166330756bdcddcd8b6db
 ```
 
 `spec/fixtures/gen-audio-pipeline-smoke.mjs` regenerates and verifies
@@ -86,6 +87,64 @@ misconfigured machine from silently rewriting these constants. The
 fixture verifies single-machine cross-invocation determinism only;
 cross-machine determinism is a residual known risk documented in
 `spec/fixtures/README.md`.
+
+v1.1 replaced the v1.0 source, a 5-second 440 Hz sine. Its
+fingerprint, `AQAAE0mUaEkSZSoAAAAAAAAA` (track id
+`20599ccf9f5efb8cc1d6e2ae464471f6f8fab82066a42579b07024d7673b1005`),
+is one value repeated, so it is degenerate (§6.1.6) and a v1.1 ingest
+would reject it. As a fingerprint-to-id derivation it remains correct.
+
+### 6.1.6 Degenerate fingerprints
+
+A Chromaprint fingerprint string encodes a sequence of 32-bit
+subfingerprint values, one per short frame of decoded audio; `fpcalc
+-raw` prints the same sequence. Audio whose fingerprinted window is
+silent, or a single steady tone, yields one value repeated across the
+window. Every such file has the same fingerprint string, and
+therefore the same track id, whatever audio follows the window.
+
+A fingerprint is **degenerate** when its decoded sequence is empty,
+or when its most common value fills at least 19 in 20 positions:
+
+```
+degenerate = (n == 0) or (20 * count(most common value) >= 19 * n)
+```
+
+The rule reads repetition, not zeros: silence does not decode to
+zeros. Music varies frame to frame, so its most common value is rare.
+A file with a long silent opening stays non-degenerate while about 6
+seconds of its 120-second window carry signal, and that signal keeps
+its fingerprint distinct.
+
+Decoding follows Chromaprint's compressed-fingerprint format. The
+string is URL-safe base64 without padding. It decodes to one
+algorithm byte, a 24-bit big-endian value count `n`, then each
+value's XOR with its predecessor as 3-bit packed bit-position deltas
+ending in 0, then 5-bit packed overflow for deltas of 7 or more. An
+implementation MAY instead take the values from its fingerprinting
+tool, provided they equal the decoded string's.
+
+Degeneracy is a writer rule (§6.4.1). A degenerate fingerprint is
+still a valid `acoustid_fingerprint`, and an existing entry carrying
+one keeps its id (§6.1.4).
+
+**Reference vector.** `spec/fixtures/gen-fingerprint-vector.mjs`
+decodes and classifies six fingerprints without running fpcalc. The
+first four are literal fpcalc output (`-json -algorithm 2`). The
+pair is built by the script's encoder, which it first checks against
+those strings.
+
+| Fingerprint                                                    | Values | Distinct | Most common | Degenerate |
+| -------------------------------------------------------------- | ------ | -------- | ----------- | ---------- |
+| silent first 120 s, `AQADtEmUaEkSRZEGAAAA...`, track id `b8702767c27bedd78aad13742796018136471b82d99e931db8304472c3a69304` | 948 | 1 | 948 (1.000) | yes |
+| v1.0 §6.1.5 sine, `AQAAE0mUaEkSZSoAAAAAAAAA`                   | 19     | 1        | 19 (1.000)  | yes        |
+| §6.1.5 chirp, `AQAAO9HSRskFaTmP8Eez...`                        | 59     | 59       | 1 (0.017)   | no         |
+| a commercial demo track (music)                                | 948    | 786      | 7 (0.007)   | no         |
+| 19 of 20 values equal                                          | 20     | 2        | 19 (0.950)  | yes        |
+| 18 of 20 values equal                                          | 20     | 3        | 18 (0.900)  | no         |
+
+The silence fingerprint is shared by 172 files of one deployed
+library, whose durations run from 120 to 40150 seconds.
 
 ## 6.2 Tag stripping
 
@@ -138,12 +197,12 @@ compliant implementations produces the same CID, enabling cross-peer
 deduplication at the audio layer.
 
 **Reference vector.** Against the committed
-`spec/fixtures/audio/sine-sweep-5s.flac` source under the pinned
+`spec/fixtures/audio/chirp-10s.flac` source under the pinned
 toolchain, the §6.2.3 ffmpeg flags produce a tag-stripped blob of
-68127 bytes with the deterministic content-identity hash:
+156783 bytes with the deterministic content-identity hash:
 
 ```
-sha256(tag-stripped bytes) = 8b96e6aa53240d01736fb444f55ce8184e78d32dfb2013ad48f14c3592308d69
+sha256(tag-stripped bytes) = 030b44581e3f0bc77407faaf3958de78a95b257b1475bf0a65dc4a5df45a750a
 ```
 
 (The source FLAC was authored with `-bitexact -map_metadata -1` so
@@ -159,8 +218,8 @@ The base58btc string is the stored form; the base32 line is the
 same CID, shown for reference only.
 
 ```
-content.hash (stored): zb2rhg3BKZhTYqV2eSH7d2LXvjDdfyJUX9izYRre6NSG4z5WG
-base32 (informative):  bafkreiels3tkuuzebuaxg35uit2vz2ayjz4nglp3eaj22shrjq2zemenne
+content.hash (stored): zb2rhWrAP3dch4trZWGArAEEN8mqFPhsQ2Jojbedxdq8MtCgH
+base32 (informative):  bafkreiadbncfqhr7bpdxib72v44vrxtyvfnsk6yuow7quzo4jjo7iwtvbi
 ```
 
 **Multi-block vector.** Profiles differ once a blob spans more than
@@ -245,13 +304,25 @@ The canonical ingest path for a local audio file is:
    MUST reject the ingest if the fingerprinter returns an empty
    string, an error exit, or a file with no decodable audio
    stream. A subsequent `sha256("")` MUST NOT be used as a
-   fall-back track id.
+   fall-back track id. From v1.1, implementations MUST also reject
+   the ingest if the fingerprint is degenerate (§6.1.6).
 2. Compute `track_id = sha256(fingerprint)`.
 3. If an entry with this id already exists in the target library,
-   return it and stop.
-4. Parse metadata with a metadata-extraction library. If the
-   reported audio duration is `0`, unknown, or the decoded sample
-   count is zero, the implementation MUST reject the ingest.
+   compare durations. The file's duration is its decoded duration as
+   step 4 defines it. The existing entry's duration is its stored
+   `content.audio.duration`, read as written. If the stored value is
+   absent or null, return the existing entry and stop. If the two
+   differ by more than 30 seconds, the implementation MUST reject the
+   ingest as a track-id collision, MUST NOT append or replace any
+   entry, and SHOULD report the existing entry's id. Otherwise,
+   return the existing entry and stop.
+4. Parse metadata with a metadata-extraction library, and decode the
+   audio stream. The file's **decoded duration** is its decoded
+   sample count (per channel) divided by its sample rate, in seconds.
+   It is a function of the audio alone, unlike a container's
+   reported duration. If the decoded sample count is zero, the
+   implementation MUST reject the ingest. Writers SHOULD store the
+   decoded duration as `content.audio.duration`.
 5. Extract artwork from `metadata.common.picture` into a separate
    collection and remove it from `metadata.common`.
 6. Produce a tag-stripped copy of the audio in a temporary location
@@ -275,9 +346,28 @@ The canonical ingest path for a local audio file is:
     f. Pins the oplog entry hash non-recursively.
 14. Clean up the temporary tag-stripped file.
 
+**Track-id collisions.** Chromaprint fingerprints only the opening of
+a file, 120 seconds under fpcalc's default length (§6.1.2), so a mix
+and its opening track, or a track and its truncated copy, can share
+a fingerprint and an id. The id derivation cannot change without
+invalidating v1.0 ids (§2.10), and a library holds one current entry
+per id, so a colliding ingest can only replace the existing entry or
+refuse. Replacing would silently swap one recording for another, so
+step 3 refuses and the collision surfaces. Durations within 30
+seconds count as the same recording, which absorbs encoder padding
+and container differences. Steps 1 and 3 change only what a writer
+appends; every existing id and entry stays valid.
+
+**Known limitation.** An entry written before v1.1 may store a
+container-reported duration rather than the decoded one, so the step
+3 check against v1.0 data depends on the original writer's metadata
+library. A v1.0 entry whose stored duration is off by more than 30
+seconds makes a matching ingest look like a collision. The rule is
+unchanged; such an ingest is refused and reported.
+
 **End-to-end reference.** `spec/fixtures/gen-audio-pipeline-smoke.mjs`
 exercises steps 1–2 and 6–7 of this pipeline against the committed
-`spec/fixtures/audio/sine-sweep-5s.flac` source under the pinned
+`spec/fixtures/audio/chirp-10s.flac` source under the pinned
 toolchain. The expected fingerprint and `track_id` are embedded in
 §6.1.5; the expected sha256 of the tag-stripped bytes and the
 expected `audio_cid` are embedded in §6.2.4. Steps 3, 4, 5, 8–13 are not exercised by this smoke

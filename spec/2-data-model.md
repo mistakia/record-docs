@@ -257,6 +257,10 @@ with the same content CID.
 }
 ```
 
+From v1.1, links are recorded in the identity library (§4.8.4).
+Writers no longer append Log PUTs, and readers still apply Log
+entries written before v1.1.
+
 ## 2.6 About payload
 
 `about`-type entries describe the *owning* library (the library whose
@@ -309,11 +313,20 @@ Entries are wrapped in an operation object when appended to the log:
 
 ```
 {
-  op:    "PUT",
-  key:   <entry.id>,    // same as the envelope id field
-  value: <entry>        // the full envelope object (per §2.2)
+  op:            "PUT",
+  key:           <entry.id>,    // same as the envelope id field
+  value:         <entry>,       // the full envelope object (per §2.2)
+  capability_id: <string>?      // v1.1; only on an entry written under a capability
 }
 ```
+
+`capability_id` names the capability authorising an entry whose
+signer is not in the library's `write` list (§3.5.9). An entry signed
+by a `write`-list key MUST NOT carry it.
+
+In a `recordstore` library, a v1.1 PUT may instead carry a capability
+or revocation record as its `value` (§3.5.5, §3.5.10). Its `key` is
+then derived from the record, not from an envelope id.
 
 ### 2.8.2 DEL
 
@@ -333,13 +346,14 @@ Requirements:
 - A `DEL` operation MUST carry `value.type` equal to either `"track"`
   or `"log"`. About entries MUST NOT be deleted in this version.
 - A `DEL` operation MUST NOT carry a content CID.
-- A received entry whose `payload` is a `DEL` with `value.type` equal
-  to `"about"`, `"listen"`, or any value other than `"track"` or
-  `"log"` MUST be rejected at the append-verification step
+- A received entry in a `recordstore` library whose `payload` is a
+  `DEL` with `value.type` equal to `"about"`, `"listen"`, or any value
+  other than `"track"` or `"log"` MUST be rejected at the append-verification step
   (§3.5.4 / §4.5) and MUST NOT be added to the local oplog.
 - In a `listens`-type library (§2.7) the only valid operation shape is
   a listen-entry write; `DEL` operations MUST be rejected by both the
   writer (on local append) and any replicating peer (on remote merge).
+- In an `identity` library (§4.8), `DEL` operations follow §4.8.2.
 
 ## 2.8.3 Size bounds
 
@@ -368,7 +382,8 @@ objects:
 1. The dag-cbor payload referenced by `entry.content` (non-recursive pin).
 2. The signed log-entry object itself (non-recursive pin).
 3. For Track entries: `content.hash` (the audio blob) and every CID in
-   `content.artwork` (pinned so they are preserved locally).
+   `content.artwork` (pinned so they are preserved locally), as the
+   library's replication policy directs (§4.6.1).
 
 These pinning actions support garbage collection on library unlink: only
 content uniquely held by the unlinked library is dropped.

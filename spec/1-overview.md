@@ -1,7 +1,7 @@
 # Record Protocol Specification — Overview
 
 **Version**: 1
-**Status**: v1.0.6
+**Status**: v1.1.0-draft
 
 ## 1.1 Introduction
 
@@ -106,14 +106,26 @@ A "Record peer" is any process that speaks the Record protocol. An
 **Peer**: a process running a Record implementation. A peer holds
 zero or more libraries.
 
-**Identity**: a secp256k1 key pair controlling one library. A peer
-MAY hold multiple identities; each library has exactly one writer
-identity.
+**Identity**: a secp256k1 key pair that owns one or more libraries
+and one identity library. A peer MAY hold multiple identities; a
+library's access controller names the keys that own it (§3.5).
 
 **Library**: an append-only, signed log of operations identified by
 a library address. Libraries are the unit of access control and
-replication. The protocol defines two library types: `recordstore`
-(tracks, log links, about) and `listens` (listen history).
+replication. The protocol defines three library types: `recordstore`
+(tracks, log links, about, capabilities), `listens` (listen history),
+and `identity` (an identity's libraries, links, and pins).
+
+**Identity library**: the `identity`-type library each identity has
+exactly one of, also called the identity meta-log (§4.8). Its
+address depends on the identity key alone (§3.6.2).
+
+**Library discriminator**: the manifest `name`, which tells apart
+the libraries one identity owns (§3.6.1).
+
+**Capability**: an owner-signed record in a `recordstore` library
+that lets another identity append specific operations to it, until
+revoked (§3.5.5).
 
 **Library address**: a stable string of the form
 `/record/<manifest-cid>/<library-name>`. The `<manifest-cid>` is

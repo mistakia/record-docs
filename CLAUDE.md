@@ -18,8 +18,11 @@ spec/                                # The protocol specification (canonical)
   4-library-structure.md
   5-network-protocol.md
   6-content-processing.md
-  7-http-api.yaml                    # OpenAPI for the HTTP API draft
-  fixtures/
+  7-http-api.yaml                    # OpenAPI for the HTTP API
+  8-client-application.md            # Desktop application (client) chapter
+  9-chrome-extension.md              # Chrome extension (client) chapter
+  CHANGELOG.md                       # Versions and errata
+  fixtures/                          # gen-*.mjs vector generators; see fixtures/README.md
 src/                                 # Site templates
   index.jade
   index.js

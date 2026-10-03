@@ -63,6 +63,11 @@ linked libraries:
 The message body MUST be JSON-encoded and published via the
 pubsub layer.
 
+An identity that owns several `recordstore` libraries announces one
+of them as `about` and lists the others in `logs`, with its linked
+libraries (§4.8.4). An identity library has no About entry and MUST
+NOT be announced.
+
 **LoadedAboutEntry shape.** Each `LoadedAboutEntry` is a JSON
 serialisation of a signed log entry (§4.1.1) with one
 transformation: the envelope `content` field, which on the wire
@@ -167,6 +172,9 @@ Replication is performed per-library. Peers publish to and
 subscribe from a pubsub topic equal to the library address
 string.
 
+Identity libraries (§4.8) replicate by this same protocol, on the
+topic equal to their address.
+
 ### 5.4.1 Heads exchange
 
 On joining a library's pubsub topic, a peer receives head
@@ -235,7 +243,8 @@ operation and MUST be bounded:
 2. **Fan-out cap.** A single entry's `next` and `refs` arrays
    MUST each contain at most 256 entries. An entry with more
    MUST be rejected at signature-verification time (§3.5.4) and
-   MUST NOT enqueue its children.
+   MUST NOT enqueue its children. A writer with more heads cites a
+   subset of them (§4.2).
 3. **Concurrency bound.** The peer MUST bound the number of
    in-flight fetches per library. The bound MUST be finite and
    SHOULD default to at least 4 concurrent fetches.
@@ -271,6 +280,8 @@ On successful merge, the peer SHOULD:
 1. Pin each newly-known signed log entry object (non-recursive).
 2. Pin each entry's content CID (non-recursive).
 3. Queue the entry for local indexing.
+4. Queue the audio and artwork fetches the library's replication
+   policy calls for (§4.6.1, §5.4.6).
 
 **Merge isolation.** An implementation processing multiple
 concurrent heads messages for the same library MUST ensure that
@@ -295,7 +306,7 @@ traversal for any unresolved entries recorded at pause time
 before publishing a new heads message. Resume MUST NOT re-fetch
 entries that already landed locally.
 
-**Unlink.** When a library is unlinked the implementation
+**Unlink.** When a library is unlinked (§4.8.4) the implementation
 SHOULD pause the library, unsubscribe from its pubsub topic,
 discard any unresolved-fetch state, and remove unique content
 as described in §4.6.
@@ -318,6 +329,19 @@ cannot currently be fetched from the content network.
 - A peer MUST NOT emit a "library removed" signal to local
   consumers purely because of fetch failures. Removal is an
   explicit user or API action (§5.4.4 unlink).
+
+### 5.4.6 Content replication
+
+Audio blobs and artwork travel over the content-addressed fetch
+channel (§5.1), not over a library's pubsub topic. A peer fetches
+them when a replication policy (§4.6.1) or a pin (§4.6.2) requires
+it, and on demand in `index_only` mode.
+
+These fetches MUST be bounded as §5.4.2 bounds entry fetches: a
+finite number in flight, a finite timeout per blob, and retry under
+backoff for a blob that times out. A blob that cannot be fetched
+MUST NOT stall log replication or other blob fetches. Its track stays
+listed, and only its local availability is affected.
 
 ## 5.5 Network profile
 
