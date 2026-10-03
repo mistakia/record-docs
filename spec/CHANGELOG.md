@@ -1,5 +1,9 @@
 # Record Protocol Specification — Changelog
 
+## v1.0.6 — 2026-10-03
+
+Erratum, no vector change. §8.7.5 said the node's API spec defines an explicit CORS allowlist including known clients, and no chapter defined either. §8.7.5 now requires the node to refuse with 403 a request or WebSocket upgrade from an origin off its allowlist, and defines the known-client default allowlist, used when the operator configures none, as empty at v1. An operator-configured list, including an empty one, replaces the default, and the origin `null` is never allowed. A renderer-based client reaches the node from its main process, which sends no `Origin` (§8.10.7).
+
 ## v1.0.5 — 2026-10-02
 
 Erratum, no vector change. The chapter 7 `ResolverEntry` schema, which declares itself the canonical §2.4.2 shape, named the duration field `duration_seconds` where §2.4.2 names it `duration`. The schema now uses `duration`. The flattened `Track` view keeps `duration_seconds`, since it is an API projection rather than the §2.4.2 object.

@@ -726,8 +726,24 @@ The application MUST NOT implement any other authentication scheme at v1.
 ### 8.7.5 CORS
 
 CORS is a node concern. The chrome extension (§9) consumes the same API and
-IS subject to CORS; the node's API spec defines an explicit allowlist
-including known clients. This is normative on the node, not the application.
+IS subject to CORS. This is normative on the node, not the application.
+
+- The node MUST hold an explicit allowlist of origins, and MUST refuse with
+  403 any HTTP request or WebSocket upgrade whose `Origin` header is present
+  and not on the list. A request without an `Origin` header is not from a
+  browser page and is unaffected.
+- When the node's operator configures no allowlist, the node MUST use the
+  known-client default allowlist. At v1 the known-client default allowlist
+  is empty, so such a node refuses every browser origin. An operator-configured
+  list, including an empty one, replaces the default.
+- The node MUST NOT allow the origin `null`, by default or by configuration.
+- A later revision may add an origin to the known-client default allowlist
+  once a client has a fixed, distinctive one, such as an extension with a
+  pinned ID. Until then, an operator lists such a client's origin explicitly.
+
+A renderer-based client therefore reaches the node from a privileged
+non-browser context that sends no `Origin`. The application's main process
+makes every node request on the renderer's behalf (§8.10.7).
 
 ### 8.7.6 Endpoint surface consumed
 
