@@ -305,15 +305,21 @@ The canonical ingest path for a local audio file is:
    the ingest if the fingerprint is degenerate (§6.1.6).
 2. Compute `track_id = sha256(fingerprint)`.
 3. If an entry with this id already exists in the target library,
-   compare durations: parse the file's audio duration as in step 4,
-   and read the existing entry's `content.audio.duration`. If both
-   are known and differ by more than 30 seconds, the implementation
-   MUST reject the ingest as a track-id collision, MUST NOT append or
-   replace any entry, and SHOULD report the existing entry's id.
-   Otherwise, return the existing entry and stop.
-4. Parse metadata with a metadata-extraction library. If the
-   reported audio duration is `0`, unknown, or the decoded sample
-   count is zero, the implementation MUST reject the ingest.
+   compare durations. The file's duration is its decoded duration as
+   step 4 defines it. The existing entry's duration is its stored
+   `content.audio.duration`, read as written. If the stored value is
+   absent or null, return the existing entry and stop. If the two
+   differ by more than 30 seconds, the implementation MUST reject the
+   ingest as a track-id collision, MUST NOT append or replace any
+   entry, and SHOULD report the existing entry's id. Otherwise,
+   return the existing entry and stop.
+4. Parse metadata with a metadata-extraction library, and decode the
+   audio stream. The file's **decoded duration** is its decoded
+   sample count (per channel) divided by its sample rate, in seconds.
+   It is a function of the audio alone, unlike a container's
+   reported duration. If the decoded sample count is zero, the
+   implementation MUST reject the ingest. Writers SHOULD store the
+   decoded duration as `content.audio.duration`.
 5. Extract artwork from `metadata.common.picture` into a separate
    collection and remove it from `metadata.common`.
 6. Produce a tag-stripped copy of the audio in a temporary location
