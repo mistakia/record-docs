@@ -35,19 +35,20 @@ Each script exits non-zero on any verification failure.
 | F4  | `gen-signing-vector.mjs` (extended) | §4.1.1, §4.1.2                  | Same generator as F0; emits the signed object's CID (entry.hash) and a child entry with non-empty `next`. |
 | F5  | `gen-current-state-vector.mjs`      | §4.4.2                          | Three-entry race set + `(clock.time DESC, timestamp DESC, hash ASC)` ordering rule.  |
 | F6  | `gen-network-message-vector.mjs`    | §5.3.2, §5.4.1                  | LoadedAboutEntry inline-content transform + heads message size bound check.          |
-| F7  | `gen-audio-pipeline-smoke.mjs`      | §6.1, §6.2, §6.4                | fpcalc fingerprint + sha256 track_id + ffmpeg tag-strip end-to-end smoke.            |
+| F7  | `gen-audio-pipeline-smoke.mjs`      | §5.5.1, §6.1, §6.2, §6.4        | fpcalc fingerprint + sha256 track_id + ffmpeg tag-strip + unixfs-v1-2025 audio CID; multi-block CID vector. |
 
 ## Toolchain pinning
 
-F0–F6 are pure JavaScript and pin to exact dependency versions in
-`package.json`:
+F0–F6 and the CID step of F7 are pure JavaScript and pin to exact
+dependency versions in `package.json`:
 
-| Dependency       | Pinned version |
-| ---------------- | -------------- |
-| `@ipld/dag-cbor` | 9.2.6          |
-| `@noble/curves`  | 2.0.1          |
-| `@noble/hashes`  | 2.0.1          |
-| `multiformats`   | 13.4.0         |
+| Dependency             | Pinned version |
+| ---------------------- | -------------- |
+| `@ipld/dag-cbor`       | 9.2.6          |
+| `@noble/curves`        | 2.0.1          |
+| `@noble/hashes`        | 2.0.1          |
+| `ipfs-unixfs-importer` | 17.1.1         |
+| `multiformats`         | 13.4.0         |
 
 F7 shells out to external binaries that are NOT installed by
 `yarn install`. The operator's machine must provide them at exactly

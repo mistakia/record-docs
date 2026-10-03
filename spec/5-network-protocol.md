@@ -345,3 +345,35 @@ Peers running on the libp2p stack MUST be configured as follows:
 
   Peers with a different PSK cannot exchange blocks with Record
   peers.
+- **Content import profile**: writers MUST import audio blobs and
+  artwork as UnixFS files using the IPIP-499 `unixfs-v1-2025`
+  profile (https://specs.ipfs.tech/ipips/ipip-0499/). Its
+  parameters are:
+
+  | Parameter            | Value                                   |
+  | -------------------- | --------------------------------------- |
+  | CID version          | CIDv1                                   |
+  | Hash function        | sha2-256                                |
+  | Leaves               | raw                                     |
+  | Chunker              | fixed-size, 1 MiB (1048576 bytes)       |
+  | DAG layout           | balanced, 1024 links per node           |
+  | HAMT fanout          | 256                                     |
+  | HAMT threshold       | 256 KiB, estimated as block bytes       |
+  | HAMT switch          | when the estimate is strictly greater   |
+  | Mode and mtime       | excluded                                |
+
+  The profile makes the CID a function of the blob bytes alone, so
+  byte-identical tag-stripped audio (§6.2) yields the same
+  `content.hash` on every peer.
+
+  Implementations MUST NOT override any parameter the profile sets.
+  Some importers apply a profile only to options the caller left
+  unset: in the JS `ipfs-unixfs-importer`, an explicit `cidVersion`,
+  `rawLeaves`, `chunker`, `layout`, or shard option wins over
+  `profile`. Pass the profile and nothing it sets. Each blob is
+  imported as a single file, not wrapped in a directory.
+
+  Readers MUST accept any valid CID in `content.hash` and
+  `content.artwork`. Entries written before v1.0.3 may carry a
+  CIDv0 (`Qm...`) or a CIDv1 from another profile; they remain
+  readable but do not dedupe against profile-conformant CIDs.

@@ -253,7 +253,7 @@ pin item 5 because `envelope.content` is a string, not an IPLD link.
 Pinning MAY be non-recursive for items 1-5 (the dag-cbor objects are
 leaf-level from the pinning perspective) and SHOULD be recursive for
 item 6 (the audio blob is typically chunked into a UnixFS DAG by
-the content network's default importer, so a recursive pin is needed
+the §5.5.1 importer, so a recursive pin is needed
 to retain all blocks).
 
 On unlink, the implementation MUST unpin items 1, 2, 3, every entry

@@ -26,11 +26,11 @@ on read is non-conformant because two peers that disagree on the
 canonical bytes will compute different hashes and diverge.
 
 **Audio blobs and artwork** are NOT stored as dag-cbor objects.
-They are uploaded to the content network using its default import
-pipeline. The resulting CIDs are stored in `track.content.hash`
-(audio) and `track.content.artwork[]` (artwork). The hash algorithm
-for these CIDs is determined by the content-network configuration.
-See §6.2.4 for audio CID derivation.
+They are imported into the content network as UnixFS files using
+the content import profile in §5.5.1 (IPIP-499 `unixfs-v1-2025`:
+CIDv1, sha2-256, raw leaves). The resulting CIDs are stored in
+`track.content.hash` (audio) and `track.content.artwork[]`
+(artwork). See §6.2.4 for audio CID derivation.
 
 ## 2.2 Entry envelope
 
@@ -383,7 +383,7 @@ A compliant implementation MUST:
   §6.1.2.1).
 - Treat two tag-stripped audio blobs as byte-identical given the
   same source audio, such that `content.hash` is stable across
-  peers.
+  peers under the §5.5.1 content import profile.
 
 The `envelope.content` CID is **not** guaranteed to be identical
 across peers for the same audio source, because the dag-cbor

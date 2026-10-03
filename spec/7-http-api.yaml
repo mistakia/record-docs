@@ -554,7 +554,10 @@ paths:
       - name: cid
         in: path
         required: true
-        description: Base58btc-encoded CIDv1 of the audio blob.
+        description: |
+          CID of the audio blob (`content.hash`). Accepts any valid
+          CID string: CIDv1, as written under the spec §5.5.1 import
+          profile, or legacy CIDv0 (`Qm...`).
         schema: { type: string }
     head:
       tags: [audio]

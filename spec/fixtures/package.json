@@ -8,6 +8,7 @@
     "@ipld/dag-cbor": "9.2.6",
     "@noble/curves": "2.0.1",
     "@noble/hashes": "2.0.1",
+    "ipfs-unixfs-importer": "17.1.1",
     "multiformats": "13.4.0"
   }
 }

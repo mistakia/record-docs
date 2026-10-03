@@ -1,7 +1,7 @@
 # Record Protocol Specification — Overview
 
 **Version**: 1
-**Status**: v1.0.2
+**Status**: v1.0.3
 
 ## 1.1 Introduction
 
@@ -64,7 +64,8 @@ account system. Every peer is a full node.
 ### 1.2.4 Trade-offs
 
 - Deterministic dedup requires pinning tag-stripping and
-  fingerprinting tools and algorithms (§6). Silent drift breaks
+  fingerprinting tools and algorithms (§6), and the content
+  importer and its import profile (§5.5.1). Silent drift breaks
   cross-peer deduplication.
 - Fixed access controllers preclude in-place recovery from key
   compromise.

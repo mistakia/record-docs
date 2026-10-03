@@ -127,13 +127,15 @@ non-conformant.
 
 ### 6.2.4 Audio CID
 
-The tag-stripped blob is uploaded to content-addressed storage using
-the content network's default chunking and hashing. The resulting CID
-is stored in `track.content.hash`.
+The tag-stripped blob MUST be imported into content-addressed
+storage with the §5.5.1 content import profile (IPIP-499
+`unixfs-v1-2025`). The resulting CID is stored in
+`track.content.hash`.
 
-Because the tag-stripping operation is byte-deterministic, the same
-source audio processed by compliant implementations will produce the
-same CID, enabling cross-peer deduplication at the audio layer.
+Because the tag-stripping operation is byte-deterministic and the
+import profile is fixed, the same source audio processed by
+compliant implementations produces the same CID, enabling cross-peer
+deduplication at the audio layer.
 
 **Reference vector.** Against the committed
 `spec/fixtures/audio/sine-sweep-5s.flac` source under the pinned
@@ -148,12 +150,29 @@ sha256(tag-stripped bytes) = 8b96e6aa53240d01736fb444f55ce8184e78d32dfb2013ad48f
 it already carries no metadata; the strip operation is an identity
 on this fixture, which is fine — the load-bearing property the
 fixture exercises is determinism across invocations, not a metadata
-delta.) The exact `track.content.hash` CID an implementation writes
-depends on its content network's chunking and hashing profile;
-two implementations that disagree on the profile may write distinct
-CIDs over byte-identical stripped audio. The cross-peer dedup
-guarantee in §6.6 is anchored to the stripped bytes, not to the
-profile-specific CID encoding.
+delta.)
+
+Importing those bytes with the §5.5.1 profile gives the
+`track.content.hash` CID below. The blob is under 1 MiB, so it is a
+single raw leaf and the multihash digest equals the sha256 above.
+
+```
+base32:    bafkreiels3tkuuzebuaxg35uit2vz2ayjz4nglp3eaj22shrjq2zemenne
+base58btc: zb2rhg3BKZhTYqV2eSH7d2LXvjDdfyJUX9izYRre6NSG4z5WG
+```
+
+**Multi-block vector.** Profiles differ once a blob spans more than
+one chunk. For 2097153 synthetic bytes where `byte[i] = i mod 251`,
+the profile yields a balanced DAG of three raw leaves (1 MiB, 1 MiB,
+1 byte) under one dag-pb root:
+
+```
+base32:    bafybeicbqmn7dngqnrzj3nvlx6g5kovlh5kqoorhkuzpjailn3coy5xzei
+base58btc: zdj7WZqdXsKQ1j19s9xaxhLp5oFvFF51WaWK7BVLgbZvB46n5
+```
+
+A CIDv1 raw-leaves import of the same bytes with the legacy 256 KiB
+chunker yields a different CID, and the fixture checks that it does.
 
 ## 6.3 Metadata extraction
 
@@ -258,8 +277,8 @@ The canonical ingest path for a local audio file is:
 exercises steps 1–2 and 6–7 of this pipeline against the committed
 `spec/fixtures/audio/sine-sweep-5s.flac` source under the pinned
 toolchain. The expected fingerprint and `track_id` are embedded in
-§6.1.5; the expected sha256 of the tag-stripped bytes is embedded
-in §6.2.4. Steps 3, 4, 5, 8–13 are not exercised by this smoke
+§6.1.5; the expected sha256 of the tag-stripped bytes and the
+expected `audio_cid` are embedded in §6.2.4. Steps 3, 4, 5, 8–13 are not exercised by this smoke
 fixture (they touch storage, indexing, and signing layers that
 each have their own dedicated fixtures: F3 for AC chain, F0/F4 for
 signing).
@@ -314,7 +333,8 @@ A compliant implementation guarantees:
 - Two audio files with the same Chromaprint fingerprint produce the
   same track id.
 - Two audio files with byte-identical content produce the same
-  tag-stripped CID after the operations in §6.2.
+  tag-stripped CID after the operations in §6.2, imported with the
+  §5.5.1 content import profile.
 - Re-tagging the same track (changing library-scoped labels) produces
   a new oplog entry with the same content CID — the underlying
   dag-cbor payload does not change when only envelope `tags` change.
