@@ -139,11 +139,22 @@ When applying an entry to local state:
 
 1. Decode the operation from `payload`.
 2. If `payload.op === "PUT"`, route to the type-specific add handler
-   (add-about / add-track / add-log).
+   (add-about / add-track / add-log). A capability or revocation
+   record (§3.5.5, §3.5.10) goes to the capability index used by
+   §3.5.9.
 3. If `payload.op === "DEL"`, route to the type-specific remove handler.
    DEL is only valid for `"track"` and `"log"` types.
 4. Track the entry in a local index so the implementation can query
    "what is the current state of key K in library L?"
+
+An inert entry (§3.5.10) is not dispatched.
+
+A v1.1 receiver MUST merge an entry signed by a `write`-list key
+whose PUT value has a `type` it does not recognise, and MUST give it
+no state effect. A later minor version's records then do not stall
+v1.1 replicas the way capability records stall v1.0 ones (§3.5.11).
+The same entry signed by anyone else is rejected, since no action
+authorises it (§3.5.6).
 
 This dispatch applies to `recordstore` libraries. A `listens` library
 holds only listen writes (§2.7), and an `identity` library dispatches
@@ -169,6 +180,8 @@ function of the signed bytes (all fields including `key` and
 signed entries MUST agree on the ordering. String comparison MUST be
 performed on the raw multihash bytes of the CID (not the base58btc
 string), so encoding choice cannot affect the result.
+
+Inert entries (§3.5.10) take no part in this ordering.
 
 A DEL entry participates in the same ordering as a PUT entry keyed
 by the same `entry_id`; a DEL is "current" if it sorts first under
@@ -200,8 +213,9 @@ winner, confirming the ordering rule is total.
 
 When merging a remote log into the local log:
 
-1. For each new entry, verify its signature (§3.4.4) and AC
-   membership (§3.5.4). Any entry that fails verification MUST be
+1. For each new entry, verify its signature (§3.4.4) and its
+   authorisation, by AC membership or by capability (§3.5.4,
+   §3.5.9). Any entry that fails verification MUST be
    dropped and MUST NOT appear in the merged oplog state observed
    by step 4.
 2. Insert the surviving entries into the local oplog structure. The
@@ -212,19 +226,21 @@ When merging a remote log into the local log:
    per §4.3. An entry that was a local head before the merge MAY
    cease to be a head after the merge if a newly merged entry
    references it in `next`.
-5. For each key touched by a merged entry, re-run the current-state
-   resolution (§4.4.2) over the complete set of known entries for
-   that key and update the query index accordingly.
+5. For each key touched by a merged entry, or holding an entry that
+   a newly effective revocation made inert (§3.5.10), re-run the
+   current-state resolution (§4.4.2) over the complete set of known
+   entries for that key and update the query index accordingly.
 
 Merges MUST be associative and commutative: for any three entry
 sets `A`, `B`, `C`, the oplog state resulting from
 `merge(merge(A, B), C)` MUST equal the state resulting from
 `merge(A, merge(B, C))` and from `merge(C, merge(B, A))`. Because
 §4.4.2 defines a total order over any set of entries for a given
-key, and because entry verification is a pure function of the
-signed bytes and the library AC, this property follows from
-set-union semantics on the oplog and total-order resolution on the
-query index.
+key, because entry verification is a pure function of the signed
+bytes, the entry's causal past, and the library AC, and because
+inertness is a function of the entry set (§3.5.10), this property
+follows from set-union semantics on the oplog and total-order
+resolution on the query index.
 
 **Concurrent merges.** An implementation MAY process multiple merge
 batches concurrently. If it does, it MUST ensure that the final

@@ -313,11 +313,20 @@ Entries are wrapped in an operation object when appended to the log:
 
 ```
 {
-  op:    "PUT",
-  key:   <entry.id>,    // same as the envelope id field
-  value: <entry>        // the full envelope object (per §2.2)
+  op:            "PUT",
+  key:           <entry.id>,    // same as the envelope id field
+  value:         <entry>,       // the full envelope object (per §2.2)
+  capability_id: <string>?      // v1.1; only on an entry written under a capability
 }
 ```
+
+`capability_id` names the capability authorising an entry whose
+signer is not in the library's `write` list (§3.5.9). An entry signed
+by a `write`-list key MUST NOT carry it.
+
+In a `recordstore` library, a v1.1 PUT may instead carry a capability
+or revocation record as its `value` (§3.5.5, §3.5.10). Its `key` is
+then derived from the record, not from an envelope id.
 
 ### 2.8.2 DEL
 
