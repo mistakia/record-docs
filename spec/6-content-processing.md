@@ -358,6 +358,13 @@ seconds count as the same recording, which absorbs encoder padding
 and container differences. Steps 1 and 3 change only what a writer
 appends; every existing id and entry stays valid.
 
+**Known limitation.** An entry written before v1.1 may store a
+container-reported duration rather than the decoded one, so the step
+3 check against v1.0 data depends on the original writer's metadata
+library. A v1.0 entry whose stored duration is off by more than 30
+seconds makes a matching ingest look like a collision. The rule is
+unchanged; such an ingest is refused and reported.
+
 **End-to-end reference.** `spec/fixtures/gen-audio-pipeline-smoke.mjs`
 exercises steps 1–2 and 6–7 of this pipeline against the committed
 `spec/fixtures/audio/chirp-10s.flac` source under the pinned
