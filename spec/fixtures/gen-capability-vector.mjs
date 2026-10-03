@@ -17,11 +17,15 @@
  *     filtered delegator, a delegated revocation (effective, then a write
  *     after it is inert), an out-of-scope revocation, a write after the
  *     owner revokes the parent, a chain of 9, and a self-revocation
+ *   - two interacting delegated revocations, where the lower-clock one
+ *     stays effective though a later one withdraws its authority
+ *   - head fan-out: a grantee leaves 257 heads; the owner appends citing
+ *     256, then converges to one head; citing all 257 is rejected
  *
  * A reference verifier in this file applies §3.5.9, §3.5.10, and the §4.2
  * clock check. The script fails unless every verdict matches the table.
  *
- * Test-only private keys k=1, k=2, k=3. DO NOT USE for anything real.
+ * Test-only private keys k=1 to k=4. DO NOT USE for anything real.
  */
 
 import { encode, code as dagCborCode } from '@ipld/dag-cbor'
@@ -48,6 +52,7 @@ const derive_address = (key, library_type, discriminator) => {
 const OWNER = public_key(1)
 const K2 = public_key(2)
 const K3 = public_key(3)
+const K4 = public_key(4)
 const LIBRARY = derive_address(OWNER, 'recordstore', 'library')
 const LISTENS = derive_address(OWNER, 'listens', 'listens')
 const IDENTITY = derive_address(OWNER, 'identity', 'identity')
@@ -256,6 +261,7 @@ const verify = (hash) => {
   const { payload } = entry
   const expected_time = entry.next.length ? Math.max(...entry.next.map((h) => entries.get(h).clock.time)) + 1 : 1
   if (entry.clock.time !== expected_time) return 'clock'
+  if (entry.next.length > 256 || entry.refs.length > 256) return 'fan-out'
   const library_type = LIBRARY_TYPE.get(entry.id)
   if ('capability_id' in payload && library_type !== 'recordstore') return 'capability_id outside recordstore'
   if (record_malformed(payload)) return 'malformed'
@@ -268,11 +274,10 @@ const verify = (hash) => {
   if (!grantee_matches(c1.payload.value.grantee, entry.key)) return 'grantee mismatch'
   const chain = chain_of(payload.capability_id)
   if (chain.length > 8) return 'chain too long'
-  const owner_revoked = [...past].some((h) => {
-    const e = entries.get(h)
-    return is_owner(e.key) && e.payload.value?.type === 'revocation' && chain.includes(e.payload.value.revokes)
-  })
-  if (owner_revoked) return 'revoked in causal past'
+  // Step 6: the effective set computed over the causal past alone.
+  if (effective_revocations(past).some((r) => chain.includes(entries.get(r).payload.value.revokes))) {
+    return 'revoked in causal past'
+  }
   if (payload.value.type === 'revocation') {
     const target = payload.value.revokes
     const in_scope = past.has(target) && entries.get(target).payload.value?.type === 'capability' &&
@@ -308,10 +313,11 @@ const merge_all = () => {
 const is_revocation = (h) => entries.get(h).payload.value?.type === 'revocation'
 const self_referential = (h) =>
   is_revocation(h) && !is_owner(entries.get(h).key) && chain_of(entries.get(h).payload.capability_id).includes(entries.get(h).payload.value.revokes)
+// The general rule, for writes and capability records; a revocation's
+// effect is decided only by effective_revocations.
 const is_inert = (hash, effective) => {
   const entry = entries.get(hash)
   if (is_owner(entry.key)) return false
-  if (self_referential(hash)) return true
   return chain_of(entry.payload.capability_id).some((c) =>
     effective.some((r) => entries.get(r).payload.value.revokes === c && !causal_past(r).has(hash)))
 }
@@ -322,7 +328,7 @@ const effective_revocations = (accepted) => {
     entries.get(a).clock.time - entries.get(b).clock.time ||
     value_timestamp(entries.get(a)) - value_timestamp(entries.get(b)) ||
     compare_bytes(multihash(a), multihash(b)))
-  for (const r of delegated) if (!is_inert(r, effective)) effective.push(r)
+  for (const r of delegated) if (!self_referential(r) && !is_inert(r, effective)) effective.push(r)
   return effective
 }
 
@@ -440,8 +446,11 @@ expect(append('k=3 About PUT under D2, which D does not cover', {
 }), 'reject: action not granted up the chain')
 const DR = append('DR: k=2 revokes D1, which it issued', { k: 2, next: [DW], capability_id: D, value: revocation(T0 + 35, D1) })
 expect(DR, 'accept')
-expect(append('k=3 write under D1 after DR', {
+expect(append('k=3 write under D1 with DR in its causal past', {
   k: 3, next: [DR], key: TRACK_B, capability_id: D1, value: track(TRACK_B, T0 + 36, [])
+}), 'reject: revoked in causal past')
+expect(append('k=3 write under D1 concurrent with DR', {
+  k: 3, next: [DW], key: TRACK_B, capability_id: D1, value: track(TRACK_B, T0 + 38, [])
 }), 'accept, inert')
 expect(append('k=3 revokes D2, which it did not issue', {
   k: 3, next: [D1, D2], capability_id: D1, value: revocation(T0 + 37, D2)
@@ -495,12 +504,64 @@ expect(append('k=2 write under S2 after the inert self-revocation', {
   k: 2, next: [RS], key: TRACK_B, capability_id: S2, value: track(TRACK_B, T0 + 83, [])
 }), 'accept')
 
+// Two interacting delegated revocations. k=2 holds H1 from the owner and
+// issues H2 to k=3; k=3 issues E to k=4. RA (k=3 revokes E, citing H2)
+// and RB (k=2 revokes H2) are concurrent, and RA has the lower clock.
+// Step 2 makes RA effective first; RB withdraws H2 afterwards but does
+// not undo RA. Y, a write under E in RB's past but not RA's, is inert
+// only because RA is effective.
+const H1 = fail_closed('H1: owner grants k=2 grant and append', grant(K2, ['library.grant_capability', 'library.append_track']), T0 + 90)
+const H2 = append('H2: k=2 grants k=3 grant and append under H1', {
+  k: 2, next: [H1], capability_id: H1, value: capability({ timestamp: T0 + 91, ...grant(K3, ['library.grant_capability', 'library.append_track']) })
+})
+expect(H2, 'accept')
+const HE = append('E: k=3 grants k=4 append_track under H2', {
+  k: 3, next: [H2], capability_id: H2, value: capability({ timestamp: T0 + 92, ...grant(K4, ['library.append_track']) })
+})
+expect(HE, 'accept')
+const RA = append('RA: k=3 revokes E citing H2 (clock 4)', { k: 3, next: [HE], capability_id: H2, value: revocation(T0 + 93, HE) })
+expect(RA, 'accept')
+const HY = append('Y: k=4 write under E, concurrent with RA', {
+  k: 4, next: [HE], key: TRACK_B, capability_id: HE, value: track(TRACK_B, T0 + 94, [])
+})
+expect(HY, 'accept, inert')
+const HW = append('k=2 write under H1', { k: 2, next: [HE], key: TRACK_A, capability_id: H1, value: track(TRACK_A, T0 + 95, []) })
+expect(HW, 'accept')
+const RB = append('RB: k=2 revokes H2 (clock 5), concurrent with RA', {
+  k: 2, next: [HW, HY], capability_id: H1, value: revocation(T0 + 96, H2)
+})
+expect(RB, 'accept')
+
+// Head fan-out (§4.2, §5.4.2 item 2).
+const SP = fail_closed('SP: owner grants k=2 append_track', grant(K2, ['library.append_track']), T0 + 100)
+const spam = []
+for (let i = 0; i < 257; i++) {
+  const id = sha256_hex(`spam-${i}`)
+  spam.push(append(`spam ${i}`, { k: 2, next: [SP], key: id, capability_id: SP, value: track(id, T0 + 101 + i, []) }))
+}
+for (const h of spam) expect(h, 'accept')
+const by_hash = [...spam].sort()
+const O1 = append('owner append citing 256 of 257 heads', {
+  k: 1, next: by_hash.slice(0, 256), key: sha256_hex('owner-1'), value: track(sha256_hex('owner-1'), T0 + 400, [])
+})
+expect(O1, 'accept')
+const O2 = append('owner append citing the last spam head and O1', {
+  k: 1, next: [by_hash[256], O1], key: sha256_hex('owner-2'), value: track(sha256_hex('owner-2'), T0 + 401, [])
+})
+expect(O2, 'accept')
+expect(append('owner append citing all 257 heads', {
+  k: 1, next: by_hash, key: sha256_hex('owner-3'), value: track(sha256_hex('owner-3'), T0 + 402, [])
+}), 'reject: fan-out')
+
 // --- Verdicts ---
 
 const { accepted, verdicts } = merge_all()
 const effective = effective_revocations(accepted)
-const verdict = (h) =>
-  verdicts.get(h) === null ? (is_inert(h, effective) ? 'accept, inert' : 'accept') : 'reject: ' + verdicts.get(h)
+const verdict = (h) => {
+  if (verdicts.get(h) !== null) return 'reject: ' + verdicts.get(h)
+  const no_effect = is_revocation(h) && !is_owner(entries.get(h).key) ? !effective.includes(h) : is_inert(h, effective)
+  return no_effect ? 'accept, inert' : 'accept'
+}
 
 console.log('=== §3.5.5 – §3.5.10 Capability Vector ===\n')
 console.log('Library (F3, owner k=1): ' + LIBRARY)
@@ -514,15 +575,25 @@ console.log('Signed dag-cbor bytes: C ' + encode(entries.get(C)).length + ', W '
 
 console.log('\nVerdicts:')
 let all_pass = true
+let spam_ok = 0
 for (const [hash, want] of expected) {
   const got = verdict(hash)
   const ok = got === want
   if (!ok) all_pass = false
+  if (ok && label_of.get(hash).startsWith('spam ')) { spam_ok++; continue }
   console.log(`  ${ok ? 'PASS' : 'FAIL'}: ${label_of.get(hash)} -> ${got}${ok ? '' : ` (expected ${want})`}`)
 }
+console.log(`  PASS: ${spam_ok} grantee spam entries -> accept`)
 const extra = [
   ['every entry has an expected verdict', expected.size === entries.size],
-  ['effective revocations are R, RE, and DR', effective.length === 3 && [R, RE, DR].every((h) => effective.includes(h))]
+  ['effective revocations are R, RE, DR, RA, and RB', effective.length === 5 && [R, RE, DR, RA, RB].every((h) => effective.includes(h))],
+  ['RA is effective though the general inertness rule would make it inert', !causal_past(RB).has(RA) && entries.get(RB).payload.value.revokes === H2 && chain_of(H2).includes(H2)],
+  ['fan-out branch converges to one head after O2', (() => {
+    const branch = [...accepted].filter((h) => h === SP || causal_past(h).has(SP))
+    const cited = new Set(branch.flatMap((h) => entries.get(h).next))
+    const heads = branch.filter((h) => !cited.has(h))
+    return heads.length === 1 && heads[0] === O2
+  })()]
 ]
 for (const [label, ok] of extra) {
   console.log('  ' + (ok ? 'PASS' : 'FAIL') + ': ' + label)

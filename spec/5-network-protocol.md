@@ -243,7 +243,8 @@ operation and MUST be bounded:
 2. **Fan-out cap.** A single entry's `next` and `refs` arrays
    MUST each contain at most 256 entries. An entry with more
    MUST be rejected at signature-verification time (§3.5.4) and
-   MUST NOT enqueue its children.
+   MUST NOT enqueue its children. A writer with more heads cites a
+   subset of them (§4.2).
 3. **Concurrency bound.** The peer MUST bound the number of
    in-flight fetches per library. The bound MUST be finite and
    SHOULD default to at least 4 concurrent fetches.

@@ -535,8 +535,9 @@ reject it unless all of the following hold:
    operation (§3.5.6), and has conditions that hold for it. For a
    Track or About PUT, every capability's filter also matches the
    filter subject. A revocation record is instead checked by §3.5.10.
-6. No revocation signed by a `write`-list key and naming a capability
-   in the chain lies in the entry's causal past.
+6. No revocation naming a capability in the chain is effective when
+   the §3.5.10 effective set is computed over the entry's causal past
+   alone.
 
 A capability's **chain** is the capability alone when a `write`-list
 key signed it. Otherwise it is the capability followed by the chain
@@ -548,9 +549,18 @@ identity can pass on only actions, filters, and conditions it holds
 itself. Each capability in the chain was itself verified when it was
 merged, as a PUT authorised by `library.grant_capability`.
 
-Step 6 stops a revoked grantee who has seen the owner's revocation
-from appending at all. A write concurrent with that revocation is
-caught by inertness instead (§3.5.10).
+Step 6 stops a revoked grantee who has merged the revocation from
+appending at all, whoever issued it. It reads only the causal past,
+so the verdict is deterministic. It can be stricter than the full
+log: a delegated revocation effective within the past may be made
+inert by a revocation outside it. That errs toward less authority,
+which revocation intends.
+
+A write concurrent with a revocation is caught by inertness instead
+(§3.5.10): it merges but has no effect. A grantee who never merges a
+revocation can keep appending such inert entries, which stay in the
+oplog, until an `expires_at` condition stops it. That residual cost
+is inherent to an append-only log that no one can prune.
 
 These checks read only the entry and its causal past, so every
 replica reaches the same verdict. A rejected entry is dropped (§4.5
@@ -591,17 +601,24 @@ seen. An entry that depends on `C` and is not in `R`'s causal past is
 **inert**. An entry depends on `C` when `C` is in the chain of the
 capability the entry cites. Inertness follows causal order, not
 timestamps, so a grantee cannot escape it by backdating an entry or
-by never merging `R`. An entry with an owner's revocation in its own
+by never merging `R`. An entry with an effective revocation in its own
 causal past is rejected outright (§3.5.9 step 6).
 
+This rule applies to writes and capability records. A revocation
+record is never judged by it. Whether a revocation takes effect is
+decided only by the effective-set procedure below, so a revocation
+found effective there stays effective, even if a revocation processed
+after it withdraws the capability it cites.
+
 **Self-reference.** A revocation that names a capability in its own
-chain is inert. It would otherwise withdraw the authority it rests on.
+chain is never effective. It would otherwise withdraw the authority it
+rests on.
 
 **Inert entries.** An inert entry stays in the oplog, because later
 entries may name it in `next`, and it still counts toward heads
 (§4.3). It has no state effect: current-state resolution (§4.4.2)
-skips it, an inert capability authorises nothing, and an inert
-revocation revokes nothing. An entry written concurrently with a
+skips it, an inert capability authorises nothing, and a revocation
+that is not effective revokes nothing. An entry written concurrently with a
 revocation can therefore be accepted and later become inert; chapter
 8 requires clients to surface this (§8.6.8).
 
@@ -613,8 +630,8 @@ follows:
 2. The other revocations are taken in ascending order of
    `clock.time`, then value `timestamp`, then `entry.hash` compared
    as raw multihash bytes (§4.4.2). Each is effective unless it is
-   self-referential or the effective revocations found so far make it
-   inert.
+   self-referential, or an effective revocation found so far names a
+   capability in its chain and does not have it in its causal past.
 
 The order respects causality, since `clock.time` is verified to grow
 along `next` (§4.2), and it is total, so every replica that holds the
@@ -637,7 +654,7 @@ W (write under C): zBwWX9GLKF4xVufTPhStjkvwmB1NV2imR8QiGJD755BqTdsPc51ur6hEyS3qB
 R (revokes C):     zBwWX7UthQBfd1XSMNssAhMwaKo38puex8DcjceV4cV3Gn59nkJYyvoDivq62GeFaEeskziMh6wb5EwBuLnUcn5DUsSwx
 ```
 
-The script checks 58 verdicts. They cover:
+The script checks 327 verdicts, 257 of them the fan-out spam below. They cover:
 
 | Case | Verdict |
 | ---- | ------- |
@@ -655,11 +672,13 @@ The script checks 58 verdicts. They cover:
 | a delegated grant within the delegator's actions, and a write under it | accept |
 | a write under a delegated grant the delegator's capability does not cover | reject: up the chain |
 | a write under a grant from a filtered delegator, tagged to match and not | accept; reject: up the chain |
-| `k = 2` revoking a grant it issued; a write under that grant afterwards | accept, effective; accept, then inert |
+| `k = 2` revoking a grant it issued; a write under that grant with the revocation in its past; one concurrent with it | accept, effective; reject: step 6; accept, then inert |
 | `k = 3` revoking a grant it did not issue | reject: out of scope |
 | a write under a delegated grant after the owner revokes its parent | reject: step 6 |
 | a write under a chain of 9 | reject: step 4 |
-| `k = 2` revoking its own self-issued grant, citing that grant | accept, inert: self-reference |
+| `k = 2` revoking its own self-issued grant, citing that grant | accept, never effective: self-reference |
+| `k = 3` revoking a grant `E` it issued under `H2`, concurrent with, and at a lower clock than, `k = 2` revoking `H2` | both effective; a write under `E` in the second's past but not the first's is inert |
+| a grantee leaving 257 heads; an owner append citing 256; one citing the last and the first; one citing all 257 | accept; accept, one head; reject: fan-out (§4.2) |
 
 
 ### 3.5.11 Compatibility with v1.0 peers
@@ -678,7 +697,7 @@ entries as follows:
   also never enqueues that entry's `next`. Entries reachable only
   through it are never fetched.
 
-The owner appends a capability record on top of all the heads it
+The owner appends a capability record on top of the heads it
 holds, and later entries descend from it. A v1.0 peer that replicated
 the library before its first capability record keeps that state and
 merges nothing after it. A v1.0 peer that first syncs afterwards

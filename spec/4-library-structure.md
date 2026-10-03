@@ -28,7 +28,7 @@ object:
 {
   id:      <string>,            // library id (the library this entry belongs to)
   payload: <operation>,         // §2.8 PUT/DEL operation
-  next:    <string[]>,          // parent entry hashes (heads at time of creation)
+  next:    <string[]>,          // parent entry hashes: heads at time of creation (§4.2)
   refs:    <string[]>,          // additional reference hashes for traversal
   v:       2,                   // entry schema version
   clock:   { id, time },        // Lamport clock
@@ -89,31 +89,52 @@ Each entry carries a Lamport clock `{ id, time }`:
 - `time` is a monotonically increasing unsigned integer reflecting
   that writer's view of the log at the moment the entry is produced.
 
-**Append rule.** On append, the writer computes
-`time = max(t for t in head_clock_times) + 1`, where
-`head_clock_times` is the multiset of `clock.time` values across all
-current heads of the library (§4.3) — NOT filtered to entries signed
-by the same writer. A library with a single writer therefore
-advances its clock by exactly 1 per append; a library with multiple
-concurrent writers may observe time jumps as remote heads are
-merged.
+**Append rule.** On append, the writer sets `next` to a non-empty
+subset of the library's current heads (§4.3), of at most 256 entries
+(§5.4.2 item 2), and computes `time = max(t.clock.time for t in next)
++ 1`. Only a library's first entry has an empty `next` and `time = 1`.
+Heads are not filtered to entries signed by the same writer. A
+library with a single writer therefore advances its clock by exactly
+1 per append; a library with multiple concurrent writers may observe
+time jumps as remote heads are merged.
 
-**Merge rule.** On merging remote entries, the local Lamport time is
-updated to `max(local_time, max(remote.clock.time for remote in
-merged_entries))`. The next local append then uses the merge rule
-followed by the append rule.
+A writer with at most 256 heads SHOULD cite them all, as v1.0 writers
+do. A writer with more SHOULD cite the heads with the greatest
+`clock.time` first: its entry then sorts after every entry it knows
+under §4.4.2, as under v1.0. A head it does not cite stays a head and
+is cited by a later append. Each append that cites 256 heads replaces
+them with one, so a writer facing `n` heads reaches a single head
+within ⌈n/255⌉ appends.
+
+The subset is what keeps a library writable. Without it, any writer
+able to append, such as a grantee (§3.5.5), could leave 257 heads by
+appending 257 entries on one parent. Every later append would then
+have to exceed the §5.4.2 fan-out cap. Inert entries (§3.5.10) still
+count as heads, so revocation would not help.
+
+**Merge rule.** Merging does not change the append rule: an append's
+time follows from the heads it cites. v1.0 kept a local Lamport time,
+`max(local_time, max(remote.clock.time for remote in merged_entries))`.
+That value never exceeds the greatest head time, because the entry
+with the greatest time has no child, so a v1.0 writer citing every
+head computed the same time.
 
 **Verification (v1.1).** A receiver MUST reject an entry whose
 `clock.time` is not exactly `max(t.clock.time for t in next) + 1`, or
 `1` when `next` is empty. The entries in `next` are in hand, because an
 entry merges only once its `next` closure is verified (§5.4.2 item 5).
-This is the append rule above, checked: a writer's `next` is its
-heads, and the highest clock time it has merged is always at a head,
-since an entry with the highest time has no child. Every entry a
-conforming v1.0 writer produced therefore passes. Without the check,
-a writer could sign `clock.time = 2^53 - 1`: that entry would win
-every §4.4.2 comparison against the owner's later PUTs and DELs, and
-no conforming writer could append after it.
+This is the append rule above, checked, so every entry a conforming
+v1.0 writer produced passes. Without the check, a writer could sign
+`clock.time = 2^53 - 1`: that entry would win every §4.4.2 comparison
+against the owner's later PUTs and DELs, and no conforming writer
+could append after it.
+
+**Reference vector.** `spec/fixtures/gen-capability-vector.mjs` has a
+grantee append 257 Track PUTs on one capability, leaving 257 heads.
+The owner's next append cites 256 of them and is valid; a second
+append cites the remaining head and the first append, and the library
+is back to one head. An owner append citing all 257 is rejected by
+the fan-out cap.
 
 **Multiple local identities.** If one peer holds multiple identities
 that write to the same library (permitted by the AC), each write
@@ -237,7 +258,8 @@ When merging a remote log into the local log:
 2. Insert the surviving entries into the local oplog structure. The
    insertion MUST be idempotent: an entry whose `entry.hash` already
    exists locally is a no-op, not a duplicate insertion.
-3. Advance the local Lamport clock time per §4.2.
+3. No clock state advances: an append's time follows from the heads
+   it cites (§4.2).
 4. Recompute the heads set as `heads(E_local ∪ E_remote_verified)`
    per §4.3. An entry that was a local head before the merge MAY
    cease to be a head after the merge if a newly merged entry
@@ -502,7 +524,11 @@ count it as an own library when choosing a default write target
 (chapter 7). They MAY keep replicating and announcing it.
 
 **Listens.** An identity has at most one active own library of type
-`listens`, and its listens are written there (§6.5).
+`listens`, and its listens are written there (§6.5). A writer MUST NOT
+retire it: retirement is permanent, and the identity's listens would
+have nowhere to go. If a retirement of it is found anyway, from a
+non-conforming writer, the identity creates a new listens library
+with a new discriminator (§3.6.1) before recording another listen.
 
 ### 4.8.4 Links
 
