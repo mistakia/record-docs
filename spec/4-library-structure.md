@@ -253,7 +253,9 @@ batch).
 ## 4.6 Per-library pinning
 
 For each opened library, an implementation MUST pin items 1-3 (the
-AC chain, per §3.5.1) and SHOULD pin items 4-6:
+AC chain, per §3.5.1) and SHOULD pin items 4-5. Item 6 follows the
+library's replication policy (§4.6.1) and the identity's pins
+(§4.6.2):
 
 1. The library manifest (AC chain object 1, §3.5.1).
 2. The AC wrapper (chain object 2).
@@ -279,7 +281,79 @@ to retain all blocks).
 On unlink, the implementation MUST unpin items 1, 2, 3, every entry
 hash the library uniquely held (not shared with another still-linked
 library), and every content CID/audio/artwork that is not referenced by
-another still-linked library.
+another still-linked library. It MUST NOT unpin a blob that a pin
+(§4.6.2) still holds.
+
+### 4.6.1 Replication policy
+
+An implementation holds a replication policy for each library it
+links that is not an own library (§4.8.3). The policy is node-local
+configuration. It is not written to any log or visible to peers, and
+two devices of one identity MAY hold different policies for the same
+library. It decides item 6 only: items 1-5, and replication of the
+log itself (§5.4), are the same in every mode.
+
+| Mode         | Item 6 for each live Track entry                                              |
+| ------------ | ----------------------------------------------------------------------------- |
+| `full`       | MUST fetch and pin                                                            |
+| `selective`  | MUST fetch and pin when its track view matches the policy filter; otherwise as `index_only` |
+| `index_only` | MUST NOT fetch proactively                                                    |
+
+- A library with no configured policy, including one linked before
+  v1.1, is `full`. This keeps the v1.0 recommendation to pin item 6
+  as the default.
+- An own library is always replicated as `full`.
+- In `index_only` mode a blob fetched on demand, for example to serve
+  playback, MAY be cached without a pin and evicted. The cache MUST
+  be bounded; its size is the implementation's choice (§1.7).
+- When a track stops qualifying, because it is tombstoned or
+  superseded, no longer matches the filter, or the mode changes, the
+  implementation MAY unpin its item 6 objects, unless a pin, an own
+  library, or another library's policy still holds them.
+- Pausing replication (§5.4.4) suspends the fetches a policy calls
+  for, and resuming restarts them. Pause and resume do not change the
+  mode.
+
+**Track view.** A `selective` filter is a FilterSpec (§3.5.7)
+evaluated against this object, built for each live Track entry:
+
+```
+{
+  library_address:  <string>,       // the library holding the entry
+  added_by:         <pubkey_hex>,   // entry.key
+  added_at:         <uint64>,       // envelope.timestamp
+  tags:             <string[]>,     // envelope.tags, [] when absent
+  cid:              <string>,       // content.hash
+  audio_size_bytes: <uint64>,       // content.size
+  duration_seconds: <number>?,      // content.audio.duration
+  title:            <string>?,      // content.tags.title
+  artist:           <string>?,      // content.tags.artist
+  source:           <string[]>      // extractor of each content.resolver entry
+}
+```
+
+A field whose source is absent or null is absent from the view.
+Building the view reads item 5, the content payload, which every mode
+already pins.
+
+A filter that fails closed (§3.5.7) selects no track, so its library
+behaves as `index_only`. An implementation SHOULD refuse to configure
+such a filter, and SHOULD surface one it already holds.
+
+### 4.6.2 Pins
+
+A `pin` record in the identity library (§4.8.2) asks every device of
+the identity to keep a blob, whatever any library's policy. For each
+`pin` record whose current state is a PUT, every implementation
+holding the identity MUST fetch the blob `cid` and pin it
+recursively, and SHOULD pin the artwork of each known Track entry
+whose `content.hash` equals `cid`. A pin applies even when no known
+library holds the track, and while the libraries that hold it are
+paused (§5.4.4).
+
+When a pin's current state becomes a DEL, the implementation MAY
+unpin the blob, unless an own library or a replication policy still
+holds it.
 
 ## 4.7 Query database derivability
 

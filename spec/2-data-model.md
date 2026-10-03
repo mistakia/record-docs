@@ -382,7 +382,8 @@ objects:
 1. The dag-cbor payload referenced by `entry.content` (non-recursive pin).
 2. The signed log-entry object itself (non-recursive pin).
 3. For Track entries: `content.hash` (the audio blob) and every CID in
-   `content.artwork` (pinned so they are preserved locally).
+   `content.artwork` (pinned so they are preserved locally), as the
+   library's replication policy directs (§4.6.1).
 
 These pinning actions support garbage collection on library unlink: only
 content uniquely held by the unlinked library is dropped.

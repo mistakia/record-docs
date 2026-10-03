@@ -279,6 +279,8 @@ On successful merge, the peer SHOULD:
 1. Pin each newly-known signed log entry object (non-recursive).
 2. Pin each entry's content CID (non-recursive).
 3. Queue the entry for local indexing.
+4. Queue the audio and artwork fetches the library's replication
+   policy calls for (§4.6.1, §5.4.6).
 
 **Merge isolation.** An implementation processing multiple
 concurrent heads messages for the same library MUST ensure that
@@ -326,6 +328,19 @@ cannot currently be fetched from the content network.
 - A peer MUST NOT emit a "library removed" signal to local
   consumers purely because of fetch failures. Removal is an
   explicit user or API action (§5.4.4 unlink).
+
+### 5.4.6 Content replication
+
+Audio blobs and artwork travel over the content-addressed fetch
+channel (§5.1), not over a library's pubsub topic. A peer fetches
+them when a replication policy (§4.6.1) or a pin (§4.6.2) requires
+it, and on demand in `index_only` mode.
+
+These fetches MUST be bounded as §5.4.2 bounds entry fetches: a
+finite number in flight, a finite timeout per blob, and retry under
+backoff for a blob that times out. A blob that cannot be fetched
+MUST NOT stall log replication or other blob fetches. Its track stays
+listed, and only its local availability is affected.
 
 ## 5.5 Network profile
 
