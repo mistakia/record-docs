@@ -103,6 +103,18 @@ updated to `max(local_time, max(remote.clock.time for remote in
 merged_entries))`. The next local append then uses the merge rule
 followed by the append rule.
 
+**Verification (v1.1).** A receiver MUST reject an entry whose
+`clock.time` is not exactly `max(t.clock.time for t in next) + 1`, or
+`1` when `next` is empty. The entries in `next` are in hand, because an
+entry merges only once its `next` closure is verified (§5.4.2 item 5).
+This is the append rule above, checked: a writer's `next` is its
+heads, and the highest clock time it has merged is always at a head,
+since an entry with the highest time has no child. Every entry a
+conforming v1.0 writer produced therefore passes. Without the check,
+a writer could sign `clock.time = 2^53 - 1`: that entry would win
+every §4.4.2 comparison against the owner's later PUTs and DELs, and
+no conforming writer could append after it.
+
 **Multiple local identities.** If one peer holds multiple identities
 that write to the same library (permitted by the AC), each write
 uses the clock rule above based on the current heads set; the two
@@ -203,6 +215,10 @@ both tiebreakers:
 | B     | 7          | 200                | `zBwWX88KGtBXr3KSnx3VRFU3kAdzAcR1g4GrLCaMdLdi3BWepg4nvkcEUMDWXudVjLD9AbG6672Qzo3SYoDZJ89cfYLs1` |
 | C     | 7          | 200                | `zBwWX6cFvYVau8nCB7u6v4sBWDsLJ8LNxLk8QLovwhSPPau38u8vSNxKqMy7ksxaNasfq8C5V4v9QvyDHoYp2MWz5TRDF` |
 
+The race set exercises ordering only. Its entries have empty `next`
+with clock times above 1, so they would not pass the §4.2 clock check
+as received entries; the ordering result is unaffected.
+
 A is eliminated on `clock.time` (5 < 7). B and C tie on `clock.time`
 and `timestamp`; the raw-multihash-bytes ASC tiebreak picks **C** as
 the winner (C's multihash sorts before B's). The fixture verifies that
@@ -213,9 +229,9 @@ winner, confirming the ordering rule is total.
 
 When merging a remote log into the local log:
 
-1. For each new entry, verify its signature (§3.4.4) and its
+1. For each new entry, verify its signature (§3.4.4), its
    authorisation, by AC membership or by capability (§3.5.4,
-   §3.5.9). Any entry that fails verification MUST be
+   §3.5.9), and its clock (§4.2). Any entry that fails verification MUST be
    dropped and MUST NOT appear in the merged oplog state observed
    by step 4.
 2. Insert the surviving entries into the local oplog structure. The

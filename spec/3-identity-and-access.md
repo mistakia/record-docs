@@ -326,12 +326,13 @@ implementation MUST:
 2. Verify that `entry.key` appears in the library's AC `write` list,
    or, in a `recordstore` library, that a capability authorises the
    entry (§3.5.9).
+3. From v1.1, verify `clock.time` against `next` (§4.2).
 
 Both `entry.key` and every `write`-list element are 66-character
 lowercase compressed-pubkey hex strings (§3.1), so the comparison
 is a plain string equality check.
 
-An entry that fails either check MUST be rejected. An entry signed by
+An entry that fails any check MUST be rejected. An entry signed by
 a `write`-list key passes step 2 by membership alone, as in v1.0;
 chapter 8 calls this the owner shortcut.
 
