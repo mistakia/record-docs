@@ -15,7 +15,8 @@
  *       → ffmpeg tag-strip (§6.2.3 reference flags) → sha256 of tag-
  *       stripped bytes = audio identity.
  *   (d) Import the tag-stripped bytes with the §5.5.1 content import
- *       profile (IPIP-499 unixfs-v1-2025) → track.content.hash. The
+ *       profile (IPIP-499 unixfs-v1-2025) → track.content.hash, stored
+ *       as a base58btc string (§2.4.1). The
  *       fixture is under 1 MiB, so this is a single raw leaf whose
  *       multihash is the (c) sha256.
  *   (e) Multi-block vector: SYNTH_BYTES bytes where byte[i] = i mod 251,
@@ -187,8 +188,9 @@ const synthLegacyChunkCid = await importCid(synth, { cidVersion: 1, rawLeaves: t
 const EXPECTED_FP = 'AQAAE0mUaEkSZSoAAAAAAAAA'
 const EXPECTED_TRACK_ID = '20599ccf9f5efb8cc1d6e2ae464471f6f8fab82066a42579b07024d7673b1005'
 const EXPECTED_AUDIO_IDENTITY = '8b96e6aa53240d01736fb444f55ce8184e78d32dfb2013ad48f14c3592308d69'
-const EXPECTED_AUDIO_CID = 'bafkreiels3tkuuzebuaxg35uit2vz2ayjz4nglp3eaj22shrjq2zemenne'
-const EXPECTED_SYNTH_CID = 'bafybeicbqmn7dngqnrzj3nvlx6g5kovlh5kqoorhkuzpjailn3coy5xzei'
+// base58btc is the stored form (§2.4.1).
+const EXPECTED_AUDIO_CID = 'zb2rhg3BKZhTYqV2eSH7d2LXvjDdfyJUX9izYRre6NSG4z5WG'
+const EXPECTED_SYNTH_CID = 'zdj7WZqdXsKQ1j19s9xaxhLp5oFvFF51WaWK7BVLgbZvB46n5'
 
 console.log('\n=== §6.1.5 + §6.2.4 + §6.4.1 Audio Pipeline Smoke ===\n')
 console.log('Source: ' + AUDIO_PATH)
@@ -201,12 +203,12 @@ console.log('Tag-stripped bytes: ' + strippedBytes.length)
 console.log('Audio identity = sha256(tag-stripped bytes):')
 console.log('  ' + audioIdentity)
 console.log('track.content.hash (unixfs-v1-2025 import of tag-stripped bytes):')
-console.log('  base32:    ' + audioCid.toString())
-console.log('  base58btc: ' + audioCid.toString(base58btc))
+console.log('  stored (base58btc):   ' + audioCid.toString(base58btc))
+console.log('  base32 (informative): ' + audioCid.toString())
 console.log(`\nMulti-block vector: ${SYNTH_BYTES} bytes, byte[i] = i mod 251`)
 console.log('unixfs-v1-2025 CID:')
-console.log('  base32:    ' + synthCid.toString())
-console.log('  base58btc: ' + synthCid.toString(base58btc))
+console.log('  stored (base58btc):   ' + synthCid.toString(base58btc))
+console.log('  base32 (informative): ' + synthCid.toString())
 console.log('CIDv1 raw leaves, legacy 256 KiB chunker (must differ):')
 console.log('  ' + synthLegacyChunkCid.toString())
 
@@ -214,8 +216,8 @@ const checks = [
   ['fingerprint string matches embedded expected', fingerprint === EXPECTED_FP],
   ['track_id matches embedded expected', trackId === EXPECTED_TRACK_ID],
   ['audio-identity sha256 matches embedded expected', audioIdentity === EXPECTED_AUDIO_IDENTITY],
-  ['audio CID matches embedded expected', audioCid.toString() === EXPECTED_AUDIO_CID],
-  ['multi-block CID matches embedded expected', synthCid.toString() === EXPECTED_SYNTH_CID],
+  ['audio CID matches embedded expected', audioCid.toString(base58btc) === EXPECTED_AUDIO_CID],
+  ['multi-block CID matches embedded expected', synthCid.toString(base58btc) === EXPECTED_SYNTH_CID],
   ['legacy-chunker CID differs from profile CID', !synthLegacyChunkCid.equals(synthCid)]
 ]
 console.log('\nVerifications:')

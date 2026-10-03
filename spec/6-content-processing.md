@@ -130,7 +130,7 @@ non-conformant.
 The tag-stripped blob MUST be imported into content-addressed
 storage with the §5.5.1 content import profile (IPIP-499
 `unixfs-v1-2025`). The resulting CID is stored in
-`track.content.hash`.
+`track.content.hash` as a base58btc string (§2.4.1).
 
 Because the tag-stripping operation is byte-deterministic and the
 import profile is fixed, the same source audio processed by
@@ -153,12 +153,14 @@ fixture exercises is determinism across invocations, not a metadata
 delta.)
 
 Importing those bytes with the §5.5.1 profile gives the
-`track.content.hash` CID below. The blob is under 1 MiB, so it is a
+`track.content.hash` value below. The blob is under 1 MiB, so it is a
 single raw leaf and the multihash digest equals the sha256 above.
+The base58btc string is the stored form; the base32 line is the
+same CID, shown for reference only.
 
 ```
-base32:    bafkreiels3tkuuzebuaxg35uit2vz2ayjz4nglp3eaj22shrjq2zemenne
-base58btc: zb2rhg3BKZhTYqV2eSH7d2LXvjDdfyJUX9izYRre6NSG4z5WG
+content.hash (stored): zb2rhg3BKZhTYqV2eSH7d2LXvjDdfyJUX9izYRre6NSG4z5WG
+base32 (informative):  bafkreiels3tkuuzebuaxg35uit2vz2ayjz4nglp3eaj22shrjq2zemenne
 ```
 
 **Multi-block vector.** Profiles differ once a blob spans more than
@@ -167,8 +169,8 @@ the profile yields a balanced DAG of three raw leaves (1 MiB, 1 MiB,
 1 byte) under one dag-pb root:
 
 ```
-base32:    bafybeicbqmn7dngqnrzj3nvlx6g5kovlh5kqoorhkuzpjailn3coy5xzei
-base58btc: zdj7WZqdXsKQ1j19s9xaxhLp5oFvFF51WaWK7BVLgbZvB46n5
+stored:               zdj7WZqdXsKQ1j19s9xaxhLp5oFvFF51WaWK7BVLgbZvB46n5
+base32 (informative): bafybeicbqmn7dngqnrzj3nvlx6g5kovlh5kqoorhkuzpjailn3coy5xzei
 ```
 
 A CIDv1 raw-leaves import of the same bytes with the legacy 256 KiB

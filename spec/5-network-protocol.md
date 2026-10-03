@@ -373,7 +373,8 @@ Peers running on the libp2p stack MUST be configured as follows:
   `profile`. Pass the profile and nothing it sets. Each blob is
   imported as a single file, not wrapped in a directory.
 
-  Readers MUST accept any valid CID in `content.hash` and
-  `content.artwork`. Entries written before v1.0.3 may carry a
+  Writers MUST store each resulting CID in `content.hash` and
+  `content.artwork` as a base58btc string (§2.4.1). Readers MUST
+  accept any valid CID string there. Entries written before v1.0.3 may carry a
   CIDv0 (`Qm...`) or a CIDv1 from another profile; they remain
   readable but do not dedupe against profile-conformant CIDs.

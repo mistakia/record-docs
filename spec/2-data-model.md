@@ -78,7 +78,9 @@ generator constructs a canonical payload per §2.4 / §2.5 / §2.6,
 dag-cbor encodes it, derives the content CID via §2.1, and assembles
 the envelope per the shape above. Each row's `payload.dag-cbor.bytes`
 counts the canonical CBOR length of the payload; `content` is the
-base58btc CIDv1 produced from that payload.
+base58btc CIDv1 produced from that payload. The track payload's
+`hash` value is a placeholder CID string, not a profile-conformant
+audio CID (§5.5.1, §6.2.4).
 
 | Type  | payload.dag-cbor.bytes | content (base58btc CIDv1)                                                                                  |
 | ----- | ---------------------- | ---------------------------------------------------------------------------------------------------------- |
@@ -151,7 +153,7 @@ sha2-256 was used in place of sha3-512.
 
 ```
 {
-  hash:     <CID>,          // CID of the tag-stripped audio blob
+  hash:     <string>,       // base58btc-encoded CID (5.5.1 profile) of the tag-stripped audio blob
   size:     <uint64>,       // size in bytes of the audio blob
   tags: {
     acoustid_fingerprint: <string>,   // REQUIRED; drives the track id
@@ -178,14 +180,14 @@ sha2-256 was used in place of sha3-512.
     numberOfChannels: <number>?,
     ...other_format_fields
   },
-  artwork:  <CID[]>,                  // MAY be empty
+  artwork:  <string[]>,               // base58btc-encoded CIDs (5.5.1 profile); MAY be empty
   resolver: <ResolverEntry[]>         // MAY be empty; see §2.4.2
 }
 ```
 
 Required fields (MUST be present):
 
-- `hash` — CID of the tag-stripped audio.
+- `hash` — base58btc-encoded CID string of the tag-stripped audio.
 - `size` — byte size of the audio blob.
 - `tags.acoustid_fingerprint` — drives the track id.
 - `audio` — the object itself must be present even if individual fields
