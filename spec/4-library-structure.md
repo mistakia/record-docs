@@ -98,10 +98,13 @@ library with a single writer therefore advances its clock by exactly
 1 per append; a library with multiple concurrent writers may observe
 time jumps as remote heads are merged.
 
+`next` MUST include at least one head with the greatest `clock.time`
+among the writer's heads. The entry then sorts after every entry the
+writer knows under §4.4.2, as under v1.0. Receivers cannot see the
+writer's heads, so this is a writer rule, not a verification check.
 A writer with at most 256 heads SHOULD cite them all, as v1.0 writers
-do. A writer with more SHOULD cite the heads with the greatest
-`clock.time` first: its entry then sorts after every entry it knows
-under §4.4.2, as under v1.0. A head it does not cite stays a head and
+do. A writer with more SHOULD fill the rest of `next` with the heads
+of greatest `clock.time`. A head it does not cite stays a head and
 is cited by a later append. Each append that cites 256 heads replaces
 them with one, so a writer facing `n` heads reaches a single head
 within ⌈n/255⌉ appends.

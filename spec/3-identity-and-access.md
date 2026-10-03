@@ -622,9 +622,10 @@ that is not effective revokes nothing. An entry written concurrently with a
 revocation can therefore be accepted and later become inert; chapter
 8 requires clients to surface this (§8.6.8).
 
-**Effective revocations.** A revocation is effective when it is
-authorised and not inert. A verifier finds the effective set as
-follows:
+**Effective revocations.** A revocation is effective when the
+ordered procedure below puts it in the effective set. Only accepted
+revocations enter the procedure. A verifier finds the effective set
+as follows:
 
 1. Every revocation signed by a `write`-list key is effective.
 2. The other revocations are taken in ascending order of
