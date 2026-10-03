@@ -193,7 +193,8 @@ paths:
         required: true
         description: |
           CID of the audio blob (`content.hash`), in any valid CID form.
-          The node records it in the stored form of spec §4.8.2.
+          The node records it in the canonical form of spec §4.8.2
+          (CIDv1, base32).
         schema: { type: string }
     post:
       tags: [pins]
@@ -336,7 +337,8 @@ paths:
       description: |
         Appends a `link` PUT to the identity library (spec §4.8.4).
         Replication then starts under the library's replication policy,
-        `full` unless configured (spec §4.6.1).
+        `full` unless configured. A link made before v1.1 defaults to
+        `index_only` (spec §4.6.1).
       requestBody:
         required: true
         content:
@@ -836,9 +838,9 @@ paths:
       tags: [identity]
       summary: Retire an own library.
       description: |
-        Appends a `library` DEL to the identity library (spec §4.8.3). The
-        library stays valid and replicable; the node refuses new writes
-        to it. The identity's active listens library cannot be retired
+        Appends a `library` DEL to the identity library (spec §4.8.3).
+        Retirement is permanent. The library stays valid and replicable;
+        the node refuses new writes to it. The identity's active listens library cannot be retired
         (409).
       responses:
         '204':
@@ -1465,9 +1467,13 @@ components:
           type: string
           enum: [active, expired, revoked, inert]
           description: |
-            `revoked` when an effective revocation names it, `inert` when
-            the capability's own entry is inert (spec §3.5.10), `expired`
-            when an `expires_at` is past by the node's clock.
+            `revoked` when an effective revocation names it, and `inert`
+            when the capability's own entry is inert (spec §3.5.10). Both
+            follow verification. `expired` is advisory: it means an
+            `expires_at` is past by the node's clock, so a write the node
+            makes now, timestamped now, would fail §3.5.8. Verification
+            judges expiry by each operation's own timestamp, so entries
+            already written stay valid.
         revoked_by:
           type: [string, 'null']
           description: Entry hash of the effective revocation, if any.
@@ -1742,7 +1748,7 @@ x-websocket-events:
         policy: { $ref: '#/components/schemas/ReplicationPolicy' }
 
     identity:library-created:
-      description: An own library was created or restored, here or on another device.
+      description: An own library was created, here or on another device.
       payload:
         library: { $ref: '#/components/schemas/Library' }
 

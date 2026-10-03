@@ -735,7 +735,8 @@ be 1 to 64 characters long. Two libraries of one identity with the
 same type and discriminator are the same library, so a creator MUST
 NOT reuse a discriminator that the identity library records for that
 type (§4.8.2), whether that library is active or retired. Reusing it
-would reopen the retired library rather than create a new one.
+would name the retired library, which stays retired (§4.8.3), rather
+than create a new one.
 
 The discriminator is visible in the address and is not a display
 name; a library's display name belongs in its About entry (§2.6).

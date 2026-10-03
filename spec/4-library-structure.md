@@ -315,9 +315,13 @@ log itself (§5.4), are the same in every mode.
 | `selective`  | MUST fetch and pin when its track view matches the policy filter; otherwise as `index_only` |
 | `index_only` | MUST NOT fetch proactively                                                    |
 
-- A library with no configured policy, including one linked before
-  v1.1, is `full`. This keeps the v1.0 recommendation to pin item 6
-  as the default.
+- A link recorded in the identity library, with no configured policy,
+  is `full`, keeping the v1.0 recommendation to pin item 6 as the
+  default.
+- A link that §4.8.4 derives from a legacy Log entry, made before
+  v1.1, defaults to `index_only`. Upgrading a node therefore does not
+  start fetching every linked library's audio. Relinking it records a
+  link in the identity library, which defaults to `full`.
 - An own library is always replicated as `full`.
 - In `index_only` mode a blob fetched on demand, for example to serve
   playback, MAY be cached without a pin and evicted. The cache MUST
@@ -363,7 +367,7 @@ the identity to keep a blob, whatever any library's policy. For each
 `pin` record whose current state is a PUT, every implementation
 holding the identity MUST fetch the blob `cid` and pin it
 recursively, and SHOULD pin the artwork of each known Track entry
-whose `content.hash` equals `cid`. A pin applies even when no known
+whose `content.hash` matches `cid` (§4.8.2). A pin applies even when no known
 library holds the track, and while the libraries that hold it are
 paused (§5.4.4).
 
@@ -420,31 +424,50 @@ naming the record.
 
 - `address` MUST be a library address (§3.6).
 - `alias`, when present, MUST be at most 128 UTF-8 bytes.
-- `cid` is an audio blob CID in the form §2.4.1 stores it: the
-  base58btc string for a CIDv1, or the `Qm...` string for a legacy
-  CIDv0.
+- `cid` is an audio blob CID in canonical form: as CIDv1, encoded
+  base32 (multibase prefix `b`). A CIDv0 converts to the CIDv1 with
+  the dag-pb codec and the same multihash. Every encoding of one CID
+  therefore keys one pin. A `content.hash` matches a pin when its
+  canonical form equals `cid`.
 - `timestamp` is milliseconds since the Unix epoch, as in §2.2.
 - `key` is the lowercase-hex sha256 of the UTF-8 string, as in §2.3.
 
+A receiver MUST reject an entry whose record has a `type` this
+section defines but breaks its shape: a missing or mistyped field, a
+field this section does not define, an `address` that is not a
+library address, an `alias` over 128 bytes, a `cid` not in canonical
+form, or a `key` not derived as the table states. This matches how a
+malformed envelope is treated (§2.2).
+
 **Current state.** For each `(type, key)` pair, the current record is
 chosen by the §4.4.2 ordering, with the record `timestamp` in place
-of the envelope timestamp. Resolution is per `(type, key)` rather
-than per key, because a `library` record and a `link` record for the
-same address share a key.
+of the envelope timestamp. The exception is retirement, which is
+terminal (§4.8.3). Resolution is per `(type, key)` rather than per
+key, because a `library` record and a `link` record for the same
+address share a key.
 
 **Reference vector.** `spec/fixtures/gen-meta-log-vector.mjs` signs
-four entries into the identity library of the §3.4.5 test key
+nine entries into the identity library of the §3.4.5 test key
 (§3.6.2), each with `next` naming the one before:
 
-| Entry | Operation                                              | Signed bytes | `entry.hash` (base58btc CIDv1) |
-| ----- | ------------------------------------------------------ | ------------ | ------------------------------ |
-| 1     | `library` PUT of the §3.5.1 library                    | 682          | `zBwWX6yJT8sDseJEr3iaGgYqsKiejaKBizBNPiSDeoV2yXHjkXXqcHL6JYF7xqGy5m9WQT1scdXRmh3BLoq7xp8K7VLZC` |
-| 2     | `link` PUT of test key `k = 2`'s `library`, alias `friend` | 785      | `zBwWX6tGPpW4hsRc5AhPJJhFVopAeJXmjzj9zm1aXrvnoUo9XdGZ2gRiAcmSFdovBmfHnC8rc4ny59uWSrJGAz93gdT1J` |
-| 3     | `pin` PUT of the §6.2.4 audio CID                      | 709          | `zBwWX8SQW6MJZuniaHocMBhx5rZsFmDRDEbRavhX83z4HdzvWs4dKC7jzP8BW9c882sNhfSahAxtLHmAYaSPmKoC52Xh5` |
-| 4     | `link` DEL of entry 2's address                        | 650          | `zBwWX8mh7M6JwiaAUzz7KTtjq6L7MZogzqXVqHisMzsqYCgWTHjjhEhZaXtYSmLSfBZvQYKAn7o8YKodMmtSGpBLLd5ik` |
+| Entry | Operation | Signed bytes | `entry.hash` (base58btc CIDv1) |
+| ----- | --------- | ------------ | ------------------------------ |
+| 1     | `library` PUT of the §3.5.1 library | 682 | `zBwWX6yJT8sDseJEr3iaGgYqsKiejaKBizBNPiSDeoV2yXHjkXXqcHL6JYF7xqGy5m9WQT1scdXRmh3BLoq7xp8K7VLZC` |
+| 2     | `link` PUT of test key `k = 2`'s `library`, alias `friend` | 785 | `zBwWX6tGPpW4hsRc5AhPJJhFVopAeJXmjzj9zm1aXrvnoUo9XdGZ2gRiAcmSFdovBmfHnC8rc4ny59uWSrJGAz93gdT1J` |
+| 3     | `pin` PUT of the §6.2.4 audio CID, canonical form | 717 | `zBwWX5Zuqb7EjpMAG2mtyni2tySJx81xqv8EwZjLHHEMbZdqXBdGSLqEEpjKFVMA8uxTkSccYTq3yDgECbdBVkht8ZaPR` |
+| 4     | `link` DEL of entry 2's address | 652 | `zBwWX7RK1SwM6ZJrsL5iZrbva2nzxZq8ZJkFRqLdzTar2LiLdTyBkv12Su9pYAVbdoux2BdEmvvvwcNMvd8WwYxxCdJVU` |
+| 5     | `library` PUT of the own `mixes` library | 775 | `zBwWX5znXoVXjwHimVDfJw61g6DoFcjpyXZk1nG554vMFYTpfhKLbWSP9BEBfHVTFwJ5Ls1ZcCw6yXtonvLhVJiuMN3cU` |
+| 6     | `link` PUT of the same `mixes` address | 772 | `zBwWX6egaQXcs5gPYD3k2JDc1gz2Jovm2XJnDfwgDPi5Nxy7qAv22zeXofMFGyVogkSeAN9rFUbeVrTkjsmx8cR4r6PTg` |
+| 7     | `link` DEL of `mixes` | 652 | `zBwWX7gi62tdfrS25E7pJXWaGN6hBePwyoeX9CmLGhGmAYqDW6Q1AY2Yasv1vey3SKMueQeoSRxew5Ee52JXquhRxgDkD` |
+| 8     | `library` DEL of `mixes` (retire) | 655 | `zBwWX8ne43BXLc3XjtjiTofMTaAabdEE4P3rk2ydewKkeZrCjLiyajS2CxFhsLqbrZYxYrLjyqZAwauFiqKPC59ukUgvz` |
+| 9     | a stray `library` PUT of `mixes` | 773 | `zBwWX9ZJ53V1jnWFhPZQ7vDQMbofNeHKxSNq6zo637S2frXPLmF8oaYohQrusTTMNtQ3yJBwcW3yUKr9KgT9wuysPyC2k` |
 
-After all four, the library record and the pin are current PUTs and
-the link is a current DEL.
+After all nine, the §3.5.1 library record and the pin are current
+PUTs, both links are current DELs, and `mixes` is retired. Before
+entry 8, the `mixes` library record is a PUT while its link record is
+a DEL: the two share a key but resolve apart. The script also rejects
+a pin whose `cid` is base58btc rather than canonical, and a link whose
+alias is 129 bytes.
 
 **Unknown records.** A receiver MUST merge an entry signed by `K`
 whose record `type` it does not recognise, and MUST give that entry
@@ -453,8 +476,8 @@ stalling v1.1 replicas.
 
 ### 4.8.3 Own libraries
 
-A library is an own library of `K` when its current `library` record
-is a PUT and its AC `write` list (§3.5.1) contains `K`. A reader MUST
+A library is an own library of `K` when its `library` record is a
+current PUT, or it is retired, and its AC `write` list (§3.5.1) contains `K`. A reader MUST
 check the write list before treating a recorded library as owned, so
 an identity library cannot claim another identity's library. A
 record that fails the check has no effect.
@@ -465,13 +488,18 @@ created before v1.1, the first time it opens `K` at v1.1, so the
 identity library lists every own library. Concurrent duplicate PUTs
 from two devices resolve per §4.4.2 and are harmless.
 
-**Retirement.** A DEL of a `library` record retires the library. A
-retired library stays a valid library (§3.3): its entries remain
+**Retirement.** A DEL of a `library` record retires the library for
+good. Once any `library` DEL for a key is in the identity library, the
+library is retired, whatever PUTs for that key exist or follow, and
+writers MUST NOT PUT that key again. Because a retirement can never be
+undone, a stale or concurrent PUT from another device cannot revive
+it, and no ordering across devices is needed.
+
+A retired library stays a valid library (§3.3): its entries remain
 valid, and peers that link it are unaffected. Implementations holding
 `K` MUST refuse new local writes to a retired library and MUST NOT
 count it as an own library when choosing a default write target
-(chapter 7). They MAY keep replicating and announcing it. A later
-PUT of the same key restores it.
+(chapter 7). They MAY keep replicating and announcing it.
 
 **Listens.** An identity has at most one active own library of type
 `listens`, and its listens are written there (§6.5).
