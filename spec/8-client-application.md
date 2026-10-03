@@ -394,7 +394,9 @@ reflects this:
 The application's identity surface shows:
 
 - The current identity's compressed secp256k1 public key (the 66-character
-  hex string per protocol §3.1).
+  hex string per protocol §3.1), read from the node's `GET /identity`. The
+  application MUST NOT call `/identity/export` except to perform an export
+  the user explicitly requested (§8.5.3).
 - A truncated form for inline display (first 6 + last 6 of the hex).
 - The current node's URL (so the user distinguishes bundled from remote at
   a glance).

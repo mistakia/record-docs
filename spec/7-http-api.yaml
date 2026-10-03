@@ -715,6 +715,23 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '500': { $ref: '#/components/responses/InternalError' }
 
+  /identity:
+    get:
+      tags: [identity]
+      summary: Read the node's identity.
+      description: |
+        Public identity facts for display. Clients read the public key
+        here; `GET /identity/export` returns private key material and is
+        for an explicit user export only (spec §8.5.7).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Identity' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
   /identity/export:
     get:
       tags: [identity]
@@ -1291,6 +1308,7 @@ components:
         - heads
         - replication_status
         - is_replicating
+        - connected
         - is_loading_index
         - is_processing_index
         - is_linked
@@ -1331,6 +1349,12 @@ components:
         replication_status:
           $ref: '#/components/schemas/ReplicationStatus'
         is_replicating: { type: boolean }
+        connected:
+          type: boolean
+          description: |
+            Whether replication runs for this library, false while paused
+            by `/disconnect` (spec §5.4.4). Paused is the only other state,
+            so a boolean suffices. Matches `ReplicationPolicy.connected`.
         is_loading_index: { type: boolean }
         is_processing_index: { type: boolean }
         is_linked:
@@ -1600,6 +1624,23 @@ components:
             used_bytes: { type: integer }
             max_bytes: { type: integer }
             object_count: { type: integer }
+
+    Identity:
+      type: object
+      required: [public_key, meta_log_address, own_library_address]
+      properties:
+        public_key:
+          type: string
+          pattern: '^0[23][0-9a-f]{64}$'
+          description: Compressed secp256k1 public key, 66 lowercase hex characters (spec §3.1).
+        meta_log_address:
+          type: string
+          description: Address of the identity library (spec §3.6.2).
+        own_library_address:
+          type: string
+          description: |
+            The identity's default own recordstore library: its only
+            active one, or else the one with discriminator `library`.
 
     IdentityExport:
       type: object
