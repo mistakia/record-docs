@@ -28,8 +28,8 @@ object:
 {
   id:      <string>,            // library id (the library this entry belongs to)
   payload: <operation>,         // §2.8 PUT/DEL operation
-  next:    <hash[]>,            // parent entry hashes (heads at time of creation)
-  refs:    <hash[]>,            // additional reference hashes for traversal
+  next:    <string[]>,          // parent entry hashes (heads at time of creation)
+  refs:    <string[]>,          // additional reference hashes for traversal
   v:       2,                   // entry schema version
   clock:   { id, time },        // Lamport clock
   key:     <pubkey_hex>,        // writer's compressed secp256k1 pubkey
@@ -37,7 +37,8 @@ object:
 }
 ```
 
-IPLD link fields MUST be `["next", "refs"]`. The signed log entry
+Each `next` and `refs` element is the parent's `entry.hash` as a
+plain base58btc CID string, not an IPLD link. The signed log entry
 `v` field MUST be 2.
 
 **Reference vector.** Continuing from the §3.4.5 signing vector,
@@ -64,6 +65,19 @@ stored bytes.
 
 For the §3.4.5 vector, the entry hash MUST equal the CID embedded in
 §4.1.1 above.
+
+**Child-entry vector.** The same generator signs a second entry with
+the §3.4.5 key: a `DEL` of the §3.4.5 track (`value: {type: "track",
+timestamp: 1611272666696}`), `next: [<the §4.1.1 CID above>]`,
+`refs: []`, `clock: {id: <§3.4.5 pubkey>, time: 2}`, same library
+`id`. Its signed dag-cbor object is 606 bytes and its entry hash is:
+
+```
+zBwWX6N1WUQhrDeFC3oNsPdZx2mQT9jLiPTLBDk32c6WPDZDSEr28Nuh9DgoeXwPLjLXQY7xfFkrWihvgsTeyGQ14UMT7
+```
+
+An implementation that stores `next` elements as IPLD links (CBOR
+tag 42) instead of strings produces a different hash here.
 
 ## 4.2 Lamport clock
 
@@ -218,8 +232,8 @@ batch).
 
 ## 4.6 Per-library pinning
 
-An implementation SHOULD pin all of the following content-addressed
-objects for each opened library:
+For each opened library, an implementation MUST pin items 1-3 (the
+AC chain, per §3.5.1) and SHOULD pin items 4-6:
 
 1. The library manifest (AC chain object 1, §3.5.1).
 2. The AC wrapper (chain object 2).

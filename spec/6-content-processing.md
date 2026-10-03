@@ -56,7 +56,7 @@ before encoding. The output MUST be lowercase hex.
 
 The track-id pipeline is:
 
-1. Run `fpcalc -json <file>` against any audio file.
+1. Run `fpcalc -json -algorithm 2 <file>` against any audio file.
 2. Extract the `fingerprint` field as a UTF-8 string.
 3. Compute `sha256(fingerprint)` with the UTF-8 bytes of the
    string as input.

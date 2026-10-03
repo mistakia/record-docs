@@ -15,6 +15,11 @@
  *   - the 8-field signed object's dag-cbor bytes (hex)
  *   - its CID (base58btc CIDv1, dag-cbor codec, sha3-512 multihash)
  *     — this is what gets assigned to entry.hash after write.
+ *
+ * Vector 3 (child entry, §4.1.1 / §4.1.2):
+ *   - a second entry whose `next` holds the Vector 2 entry.hash as a
+ *     plain base58btc string (not an IPLD link), signed with the same key
+ *   - its signature, signed dag-cbor length, and CID (entry.hash)
  */
 
 import { encode, code as dagCborCode, decode } from '@ipld/dag-cbor'
@@ -125,3 +130,44 @@ const signedRt = JSON.stringify(signedDecoded, sortedReplacer) === JSON.stringif
 console.log('  Signed-object dag-cbor round-trip                : ' + (signedRt ? 'PASS' : 'FAIL'))
 
 if (!mhMatches || !signedRt) process.exit(1)
+
+// --- Child-entry extension: §4.1.1 / §4.1.2 with a non-empty `next` ---
+//
+// `next` and `refs` elements are plain base58btc CID strings in both the
+// signing input and the stored 8-field object. Encoding them as IPLD links
+// (CBOR tag 42) changes the stored bytes and therefore entry.hash.
+
+const childUnsigned = {
+  id: unsigned.id,
+  payload: {
+    op: 'DEL',
+    key: unsigned.payload.key,
+    value: { type: 'track', timestamp: 1611272666696 }
+  },
+  next: [signedCid],
+  refs: [],
+  v: 2,
+  clock: { id: pubHex, time: 2 }
+}
+const childCbor = encode(childUnsigned)
+const childDigest = sha256(childCbor)
+const childSigDer = secp256k1.Signature.fromBytes(secp256k1.sign(childDigest, priv), 'compact').toBytes('der')
+const childSigned = { ...childUnsigned, key: pubHex, sig: bytesToHex(childSigDer) }
+const childSignedCbor = encode(childSigned)
+const childMh = digestCreate(SHA3_512_CODE, sha3_512(childSignedCbor))
+const childCid = CID.createV1(dagCborCode, childMh).toString(base58btc)
+
+console.log('\n=== §4.1.1 / §4.1.2 Child-Entry Vector (non-empty next) ===\n')
+console.log('next[0] (parent entry.hash, plain string):')
+console.log('  ' + signedCid)
+console.log('Unsigned child dag-cbor (' + childCbor.length + ' bytes), SHA-256:')
+console.log('  ' + bytesToHex(childDigest))
+console.log('ECDSA/secp256k1 signature (DER, hex):')
+console.log('  ' + bytesToHex(childSigDer))
+console.log('Signed child dag-cbor (' + childSignedCbor.length + ' bytes)')
+console.log('Child entry.hash (base58btc CIDv1, dag-cbor codec):')
+console.log('  ' + childCid)
+
+const childNextIsString = typeof decode(childSignedCbor).next[0] === 'string'
+console.log('\n  Child next[0] decodes as a string (no tag 42)    : ' + (childNextIsString ? 'PASS' : 'FAIL'))
+if (!childNextIsString) process.exit(1)

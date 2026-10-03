@@ -32,7 +32,7 @@ Each script exits non-zero on any verification failure.
 | F1  | `gen-content-cid-vector.mjs`        | §2.1, §2.3.1                    | Content CID derivation `{hello:world}` → dag-cbor → sha3-512 → base58btc CIDv1.       |
 | F2  | `gen-envelope-vector.mjs`           | §2.2, §2.4, §2.5, §2.6          | Track / log / about envelope round-trip + canonical-encoding hand-check.             |
 | F3  | `gen-ac-chain-vector.mjs`           | §3.5.1, §3.6                    | Manifest + AC wrapper + inner write-list → 3 CIDs → assembled library address.       |
-| F4  | `gen-signing-vector.mjs` (extended) | §4.1.1, §4.1.2                  | Same generator as F0; also emits the 8-field signed object's CID (entry.hash).       |
+| F4  | `gen-signing-vector.mjs` (extended) | §4.1.1, §4.1.2                  | Same generator as F0; emits the signed object's CID (entry.hash) and a child entry with non-empty `next`. |
 | F5  | `gen-current-state-vector.mjs`      | §4.4.2                          | Three-entry race set + `(clock.time DESC, timestamp DESC, hash ASC)` ordering rule.  |
 | F6  | `gen-network-message-vector.mjs`    | §5.3.2, §5.4.1                  | LoadedAboutEntry inline-content transform + heads message size bound check.          |
 | F7  | `gen-audio-pipeline-smoke.mjs`      | §6.1, §6.2, §6.4                | fpcalc fingerprint + sha256 track_id + ffmpeg tag-strip end-to-end smoke.            |
