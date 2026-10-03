@@ -1,6 +1,6 @@
 # Record Protocol Specification — Changelog
 
-## Unreleased — v1.1.0
+## v1.1.0 — 2026-10-03
 
 Minor version, per task `user:task/record/record-protocol-v1-1-multi-library-and-capabilities.md`. Every v1.0 library, entry, address, and track id from a conforming writer stays valid. New entry kinds are additive, and §3.5.11 and §4.8.6 state what a v1.0 peer does with each. Two v1.0 vectors change status: the §6.1.5 sine source is replaced because its fingerprint is degenerate, and the §4.4.2 race set's inputs, which have empty `next` above clock 1, are ordering inputs only and would not pass the new clock check.
 
