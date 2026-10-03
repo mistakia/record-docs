@@ -360,12 +360,13 @@ value is:
   timestamp:  <uint64>,               // ms since the Unix epoch
   grantee:    <GranteeSpec>,          // who may use it
   actions:    <string[]>,             // what it permits (§3.5.6)
-  filter:     <FilterSpec>?,          // which operations (§3.5.7)
+  filter:     <FilterSpec>?,          // which writes (§3.5.7)
   conditions: <ConditionSpec[]>?      // when (§3.5.8)
 }
 ```
 
-- `actions` MUST hold 1 to 16 strings.
+- `actions` MUST hold 1 to 16 strings, and `conditions` at most 16
+  entries.
 - An absent `filter` restricts nothing, and absent or empty
   `conditions` impose nothing.
 - The operation `key` is the lowercase-hex sha256 of the dag-cbor
@@ -387,41 +388,69 @@ signature.
 
 Each key is a §3.1 compressed public key. A grantee matches a signer
 when the signer's `entry.key` equals `key` or is an element of
-`keys`. A GranteeSpec whose `type` the verifier does not recognise
-matches no signer.
+`keys`.
 
 **Citing a capability.** An entry written under a capability names it
 in its operation as `capability_id` (§2.8.1).
 
+**Malformed and unknown content.** Each defect has one verdict:
+
+- **Reject the entry.** A capability or revocation record, or a
+  GranteeSpec, FilterSpec node (§3.5.7), or ConditionSpec (§3.5.8) of
+  a `type` this version defines, that lacks a required field, has a
+  field of the wrong type, exceeds a count bound, or nests more than
+  16 levels; a revocation record carrying a field this version does
+  not define; and an operation `key` not derived as above. This
+  matches how a malformed envelope is treated (§2.2).
+- **Accept the entry, fail closed.** A GranteeSpec, FilterSpec node,
+  or ConditionSpec whose `type` this version does not define, or one
+  of a defined type carrying a field this version does not define,
+  and a capability record carrying such a field. The entry may come
+  from a later version, so it merges, but what it cannot be read as
+  grants nothing: an unknown GranteeSpec matches no signer, an
+  unknown FilterSpec matches nothing (§3.5.7), an unknown condition
+  never holds (§3.5.8), and an unknown capability field leaves the
+  capability authorising nothing.
+
 ### 3.5.6 Action vocabulary
 
-| Action                      | Authorises                                                                 | Filter subject        |
-| --------------------------- | -------------------------------------------------------------------------- | --------------------- |
-| `library.append_track`      | a PUT of a Track envelope (§2.4)                                           | the envelope          |
-| `library.append_tag`        | a PUT of a Track envelope that keeps the `id` and `content` of the current entry for that `id` and keeps every tag that entry has | the envelope |
-| `library.update_about`      | a PUT of an About envelope (§2.6)                                          | the envelope          |
-| `library.grant_capability`  | a PUT of a capability record (§3.5.5)                                      | the capability record |
-| `library.revoke_capability` | a PUT of a revocation record (§3.5.10)                                     | the revocation record |
+| Action                     | Authorises                                                         | Filter subject |
+| -------------------------- | ------------------------------------------------------------------ | -------------- |
+| `library.append_track`     | a PUT of a Track envelope (§2.4)                                   | the envelope   |
+| `library.append_tag`       | a PUT of a Track envelope that keeps the `id` and `content` of the base entry and every tag it has | the envelope |
+| `library.update_about`     | a PUT of an About envelope (§2.6)                                  | the envelope   |
+| `library.grant_capability` | a PUT of a capability record (§3.5.5)                              | none           |
 
-For `library.append_tag`, the current entry is resolved by §4.4.2
-over the entry's **causal past**: the entries reachable from it
-through `next`, transitively. Every replica that holds the entry
-holds its causal past (§5.4.2 item 5), so all replicas classify it
-alike.
+**Base entry.** The base entry of a `library.append_tag` PUT is,
+among the entries for its `id` in the PUT's **causal past** (the
+entries reachable from it through `next`, transitively), the one the
+§4.4.2 ordering puts first, with inertness (§3.5.10) ignored. If that
+entry is a DEL, or there is none, `library.append_tag` does not
+authorise the PUT. Every replica that holds the PUT holds its causal
+past (§5.4.2 item 5). Ignoring inertness keeps the check a function of
+that past alone, since whether an entry in it is inert can turn on a
+revocation outside it.
 
 The filter subject is the object a capability's FilterSpec is
 evaluated against. An envelope is evaluated as it appears in the
-operation `value`. A Track envelope without `tags` is evaluated as if
-`tags` were `[]`.
+operation `value`; a Track envelope without `tags` is evaluated as if
+`tags` were `[]`. A filter scopes writes only. It is not applied to a
+capability record, so a delegate with a filtered capability can still
+grant; §3.5.9 step 5 then applies the delegate's filter to every write
+under the capability it grants.
 
 No action authorises a DEL, a Log PUT, or a listen write. In v1.1 a
 grantee therefore cannot remove a track, record a link, or write a
 listen.
 
-`library.append_listen` is reserved. Listens belong to the listener
-alone (§1.2.2), and a `listens` library admits only listen writes
-(§2.8.2), so v1.1 gives the verb no meaning and a verifier treats it
-as an unknown action.
+Two verbs from the v1.1 design are reserved, and a verifier treats
+each as an unknown action:
+
+- `library.append_listen`. Listens belong to the listener alone
+  (§1.2.2), and a `listens` library admits only listen writes
+  (§2.8.2).
+- `library.revoke_capability`. Authority to revoke comes from issuing
+  a capability (§3.5.10), not from a grant.
 
 An action a verifier does not recognise authorises nothing. The
 capability's other actions still apply.
@@ -459,20 +488,19 @@ numerically.
 - A field that resolves to nothing fails `match`, `any_of`, and
   `range`.
 
-**Fail closed.** A FilterSpec matches no subject when any node in
-it, at any depth:
+**Fail closed.** A FilterSpec matches no subject when any node in it,
+at any depth, has a `type` the evaluator does not recognise or
+carries a field this section does not define for its type. The whole
+filter fails, so `not` cannot turn an unknown node into a match. Later
+versions may add node types such as `regex` or `field_exists`, or
+modifiers on existing ones; failing closed means an older verifier
+never authorises more than the issuer meant.
 
-- has a `type` the evaluator does not recognise,
-- lacks a required field or has a field of the wrong type,
-- carries a field this section does not define for its type,
-- exceeds a count bound, or
-- sits more than 16 levels deep.
-
-The whole filter fails, so `not` cannot turn an unknown node into a
-match. A capability with such a filter authorises nothing, and a
-selective replication filter with one selects nothing. Later versions
-may add node types such as `regex` or `field_exists`; failing closed
-means an older verifier never authorises more than the issuer meant.
+A node of a defined type that lacks a required field, has a field of
+the wrong type, exceeds a count bound, or sits more than 16 levels
+deep is malformed. In a capability it gets the entry rejected
+(§3.5.5). As a replication filter, which is node-local configuration
+(§4.6.1), an implementation MUST refuse to configure it.
 
 ### 3.5.8 Conditions
 
@@ -502,25 +530,31 @@ reject it unless all of the following hold:
    causal past (§3.5.6). The verifier fetches it like any other
    ancestor (§5.4.2).
 3. `C1.grantee` matches the entry's signer.
-4. Every capability in `C1`'s chain grants an action that authorises
-   the operation, has a filter that matches the operation's filter
-   subject, and has conditions that hold for the operation.
+4. `C1`'s chain holds at most 8 capabilities.
+5. Every capability in the chain grants an action that authorises the
+   operation (§3.5.6), and has conditions that hold for it. For a
+   Track or About PUT, every capability's filter also matches the
+   filter subject. A revocation record is instead checked by §3.5.10.
+6. No revocation signed by a `write`-list key and naming a capability
+   in the chain lies in the entry's causal past.
 
 A capability's **chain** is the capability alone when a `write`-list
 key signed it. Otherwise it is the capability followed by the chain
-of the capability its own entry cites. A chain MUST NOT hold more
-than 8 capabilities; an entry whose chain is longer MUST be rejected.
+of the capability its own entry cites.
 
-Step 4 applies every capability in the chain, so a delegated
+Step 5 applies every capability in the chain, so a delegated
 capability never authorises more than the capabilities above it: an
 identity can pass on only actions, filters, and conditions it holds
 itself. Each capability in the chain was itself verified when it was
 merged, as a PUT authorised by `library.grant_capability`.
 
+Step 6 stops a revoked grantee who has seen the owner's revocation
+from appending at all. A write concurrent with that revocation is
+caught by inertness instead (§3.5.10).
+
 These checks read only the entry and its causal past, so every
 replica reaches the same verdict. A rejected entry is dropped (§4.5
-step 1). Revocation, which can change an entry's effect after it is
-merged, is handled separately (§3.5.10).
+step 1).
 
 An entry signed by a `write`-list key is authorised by §3.5.4 alone.
 Its operation MUST NOT carry `capability_id`, and a verifier ignores
@@ -533,10 +567,23 @@ one if present.
 ```
 
 A revocation record is a PUT whose `key` is the sha256 of its
-dag-cbor value, as in §3.5.5. A `write`-list key may revoke any
-capability. Any other identity may revoke one only under a capability
-granting `library.revoke_capability`, verified like any other entry
-(§3.5.9).
+dag-cbor value, as in §3.5.5.
+
+**Who may revoke.** A `write`-list key may revoke any capability,
+without `capability_id`, including one outside its causal past; that
+lets an owner revoke a delegated grant it has not yet seen. Another
+identity `K` may revoke capability `X` only when all of these hold,
+or the revocation MUST be rejected:
+
+- `X` is a capability record in the revocation's causal past.
+- `K` signed an entry in `X`'s chain: `K` issued `X`, or a capability
+  `X` descends from.
+- The revocation cites, as `capability_id`, a capability `K` holds,
+  and passes §3.5.9 steps 1 to 4 and 6.
+
+No action is needed to revoke: an issuer can always withdraw what it
+issued, and nothing else. A revocation is not checked against any
+filter or condition, since it only reduces authority.
 
 **Not retroactive.** A revocation `R` of capability `C` leaves valid
 every entry in `R`'s causal past, which are the entries its signer had
@@ -544,7 +591,11 @@ seen. An entry that depends on `C` and is not in `R`'s causal past is
 **inert**. An entry depends on `C` when `C` is in the chain of the
 capability the entry cites. Inertness follows causal order, not
 timestamps, so a grantee cannot escape it by backdating an entry or
-by never merging `R`.
+by never merging `R`. An entry with an owner's revocation in its own
+causal past is rejected outright (§3.5.9 step 6).
+
+**Self-reference.** A revocation that names a capability in its own
+chain is inert. It would otherwise withdraw the authority it rests on.
 
 **Inert entries.** An inert entry stays in the oplog, because later
 entries may name it in `next`, and it still counts toward heads
@@ -561,26 +612,24 @@ follows:
 1. Every revocation signed by a `write`-list key is effective.
 2. The other revocations are taken in ascending order of
    `clock.time`, then value `timestamp`, then `entry.hash` compared
-   as raw multihash bytes (§4.4.2). Each is effective unless the
-   effective revocations found so far make it inert.
+   as raw multihash bytes (§4.4.2). Each is effective unless it is
+   self-referential or the effective revocations found so far make it
+   inert.
 
-The order respects causality, since `clock.time` grows along `next`
-(§4.2), and it is total, so every replica that holds the same entries
-finds the same effective set. Inertness is then a function of the
-entry set alone, which keeps merges associative and commutative
-(§4.5).
-
-A revocation may name a capability outside its causal past. It then
-makes inert every entry that depends on that capability, which lets
-an owner revoke a delegated grant it has not yet seen.
+The order respects causality, since `clock.time` is verified to grow
+along `next` (§4.2), and it is total, so every replica that holds the
+same entries finds the same effective set. Inertness is then a
+function of the entry set alone, which keeps merges associative and
+commutative (§4.5).
 
 **Reference vector.** `spec/fixtures/gen-capability-vector.mjs`
 builds entries in the §3.5.1 library, owned by the §3.4.5 test key
 (`k = 1`), with test keys `k = 2` and `k = 3` as grantees, and checks
-each verdict with a reference verifier. Capability `C` lets `k = 2`
-append Track envelopes tagged `friends-mix` until an expiry. Its
-capability id, and the hashes of a write under it and of the owner's
-revocation of it, are:
+each verdict with a reference verifier.
+
+Capability `C` lets `k = 2` append Track envelopes tagged
+`friends-mix` until an expiry. Its capability id, a write under it,
+and the owner's revocation of it, which has seen that write, are:
 
 ```
 C (capability id): zBwWX61Hk9TaWwav3Kd5fTzdx4TEyJTU4NzSjhqDqDjyz9UoQPm7poFUmfJMQxUQU6VCbbF53C9MJbQW8HZGdwiNSb1Y1
@@ -588,39 +637,58 @@ W (write under C): zBwWX9GLKF4xVufTPhStjkvwmB1NV2imR8QiGJD755BqTdsPc51ur6hEyS3qB
 R (revokes C):     zBwWX7UthQBfd1XSMNssAhMwaKo38puex8DcjceV4cV3Gn59nkJYyvoDivq62GeFaEeskziMh6wb5EwBuLnUcn5DUsSwx
 ```
 
-| Entry                                                    | Verdict                          |
-| -------------------------------------------------------- | -------------------------------- |
-| `W`, by `k = 2`, in `R`'s causal past                    | accept                           |
-| a write by `k = 2` under `C`, concurrent with `R`        | accept, then inert               |
-| a write under `C` signed by `k = 3`                      | reject: grantee                  |
-| a write under `C` tagged `other`                         | reject: filter                   |
-| a write under `C` timestamped after the expiry           | reject: condition                |
-| a write citing `C` with `C` outside its causal past      | reject: causal past              |
-| an About PUT under `C`                                   | reject: action                   |
-| a write by `k = 2` with no `capability_id`               | reject: §3.5.4                   |
-| a write under an owner capability whose filter is `not` over an unknown node | reject: fails closed |
-| a write by `k = 3` under a capability `k = 2` delegated within its grant | accept           |
-| an About PUT by `k = 3` under a delegated grant of `library.update_about` that the delegating capability lacks | reject: action up the chain |
+The script checks 58 verdicts. They cover:
+
+| Case | Verdict |
+| ---- | ------- |
+| `W`, in `R`'s causal past | accept |
+| a write under `C` concurrent with `R` | accept, then inert |
+| a write under `C` with `R` in its causal past | reject: step 6 |
+| under `C`: signed by `k = 3`, tagged `other`, after the expiry, an About PUT | reject: steps 3, 5 |
+| citing `C` from outside its causal past; no `capability_id` | reject: steps 2, 1 |
+| a forged `clock.time` | reject: §4.2 |
+| a capability with no actions | reject: malformed |
+| under capabilities with an unknown filter node (inside `not`), grantee type, or condition type | capability accepted; write rejected |
+| an owner Track PUT carrying `capability_id` | accept; field ignored |
+| `capability_id` in a listens library and in an identity library | reject |
+| under `library.append_tag`: adding a tag; dropping one; after the base entry's DEL | accept; reject; reject |
+| a delegated grant within the delegator's actions, and a write under it | accept |
+| a write under a delegated grant the delegator's capability does not cover | reject: up the chain |
+| a write under a grant from a filtered delegator, tagged to match and not | accept; reject: up the chain |
+| `k = 2` revoking a grant it issued; a write under that grant afterwards | accept, effective; accept, then inert |
+| `k = 3` revoking a grant it did not issue | reject: out of scope |
+| a write under a delegated grant after the owner revokes its parent | reject: step 6 |
+| a write under a chain of 9 | reject: step 4 |
+| `k = 2` revoking its own self-issued grant, citing that grant | accept, inert: self-reference |
+
 
 ### 3.5.11 Compatibility with v1.0 peers
 
 Capabilities add entries to a static-AC library. They change neither
 the AC nor any rule for entries signed by a `write`-list key, so every
 v1.0 library and entry stays valid. A v1.0 peer handles the new
-entries as v1.0 already prescribes:
+entries as follows:
 
-- It drops a capability or revocation record signed by the owner,
-  because §2.2 admits only Track, Log, and About envelopes.
-- It drops an entry signed by a grantee, because the signer is not in
+- It rejects a capability or revocation record signed by the owner,
+  because §2.2 admits only Track, Log, and About envelopes, and it
+  rejects an entry signed by a grantee, because the signer is not in
   the `write` list (§3.5.4).
-- Having dropped an entry, it merges none of that entry's descendants
-  (§5.4.2 item 5).
+- It never merges a descendant of a rejected entry (§5.4.2 item 5).
+- record-node v1.0, and any traversal that abandons a rejected entry,
+  also never enqueues that entry's `next`. Entries reachable only
+  through it are never fetched.
 
-To a v1.0 peer, a library therefore stops advancing at its first
-capability record. A library whose owner never issues a capability
-stays fully readable by v1.0 peers. An owner who needs v1.0 peers to
-follow a library SHOULD NOT issue capabilities in it, and can share
-writing through a separate library instead.
+The owner appends a capability record on top of all the heads it
+holds, and later entries descend from it. A v1.0 peer that replicated
+the library before its first capability record keeps that state and
+merges nothing after it. A v1.0 peer that first syncs afterwards
+fetches nothing beneath the record either, and may see an empty
+library.
+
+A library whose owner never issues a capability stays fully readable
+by v1.0 peers. An owner who needs v1.0 peers to follow a library
+SHOULD NOT issue capabilities in it, and can share writing through a
+separate library instead.
 
 ## 3.6 Library manifest and address
 

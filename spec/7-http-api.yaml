@@ -527,12 +527,13 @@ paths:
       tags: [capabilities]
       summary: Revoke a capability.
       description: |
-        Appends a revocation record (spec §3.5.10). The owner revokes
-        directly; any other identity passes, as the `capability_id`
-        query parameter, a capability granting
-        `library.revoke_capability`. Revocation is not retroactive:
-        entries the node had merged when it revoked stay valid, and later
-        or concurrent entries under the capability become inert.
+        Appends a revocation record (spec §3.5.10). The owner revokes any
+        capability directly. Any other identity may revoke only a
+        capability it issued, or one descending from a capability it
+        issued, and passes as the `capability_id` query parameter a
+        capability it holds. Revocation is not retroactive: entries the
+        node had merged when it revoked stay valid, concurrent entries
+        under the capability become inert, and later ones are rejected.
       parameters:
         - $ref: '#/components/parameters/WriteCapability'
       responses:
