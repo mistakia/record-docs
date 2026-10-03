@@ -87,21 +87,32 @@ fixture verifies single-machine cross-invocation determinism only;
 cross-machine determinism is a residual known risk documented in
 `spec/fixtures/README.md`.
 
+This vector fixes the fingerprint-to-id derivation, and its id stays
+valid. A steady sine is degenerate under §6.1.6, though, so a v1.1
+ingest of the fixture is rejected at §6.4.1 step 1. A non-degenerate
+replacement source needs the pinned toolchain to regenerate.
+
 ### 6.1.6 Degenerate fingerprints
 
 A Chromaprint fingerprint string encodes a sequence of 32-bit
 subfingerprint values, one per short frame of decoded audio; `fpcalc
--raw` prints the same sequence. Silent frames yield the value 0, so
-every file whose fingerprinted window is silent has the same
-fingerprint string, and therefore the same track id, whatever audio
-follows the window.
+-raw` prints the same sequence. Audio whose fingerprinted window is
+silent, or a single steady tone, yields one value repeated across the
+window. Every such file has the same fingerprint string, and
+therefore the same track id, whatever audio follows the window.
 
 A fingerprint is **degenerate** when its decoded sequence is empty,
-or when fewer than 1 in 20 of its values are non-zero:
+or when its most common value fills at least 19 in 20 positions:
 
 ```
-degenerate = (n == 0) or (20 * count(value != 0) < n)
+degenerate = (n == 0) or (20 * count(most common value) >= 19 * n)
 ```
+
+The rule reads repetition, not zeros: silence does not decode to
+zeros. Music varies frame to frame, so its most common value is rare.
+A file with a long silent opening stays non-degenerate while about 6
+seconds of its 120-second window carry signal, and that signal keeps
+its fingerprint distinct.
 
 Decoding follows Chromaprint's compressed-fingerprint format. The
 string is URL-safe base64 without padding. It decodes to one
@@ -116,19 +127,21 @@ still a valid `acoustid_fingerprint`, and an existing entry carrying
 one keeps its id (§6.1.4).
 
 **Reference vector.** `spec/fixtures/gen-fingerprint-vector.mjs`
-decodes and classifies four fingerprints. It needs no fpcalc: it
-checks its encoder reproduces the §6.1.5 string from the decoded
-values, then builds the others with it.
+decodes and classifies five fingerprints without running fpcalc. The
+first three are literal fpcalc output (`-json -algorithm 2`). The
+pair is built by the script's encoder, which it first checks against
+those strings.
 
-| Fingerprint                                  | Values | Non-zero | Degenerate |
-| -------------------------------------------- | ------ | -------- | ---------- |
-| `AQAAE0mUaEkSZSoAAAAAAAAA` (§6.1.5)          | 19     | 19       | no         |
-| all zero, `AQAD6AAAAA...` (506 characters)   | 1000   | 0        | yes        |
-| `AQAAFEmUaEkSZSqSKNGSJMpUAAAAAAAAAA`         | 20     | 1        | no         |
-| `AQAAFUmUaEkSZSqSKNGSJMpUAAAAAAAAAAA`        | 21     | 1        | yes        |
+| Fingerprint                                                    | Values | Distinct | Most common | Degenerate |
+| -------------------------------------------------------------- | ------ | -------- | ----------- | ---------- |
+| silent first 120 s, `AQADtEmUaEkSRZEGAAAA...`, track id `b8702767c27bedd78aad13742796018136471b82d99e931db8304472c3a69304` | 948 | 1 | 948 (1.000) | yes |
+| §6.1.5 sine, `AQAAE0mUaEkSZSoAAAAAAAAA`                        | 19     | 1        | 19 (1.000)  | yes        |
+| a commercial demo track (music)                                | 948    | 786      | 7 (0.007)   | no         |
+| 19 of 20 values equal                                          | 20     | 2        | 19 (0.950)  | yes        |
+| 18 of 20 values equal                                          | 20     | 3        | 18 (0.900)  | no         |
 
-The §6.1.5 sine decodes to 19 equal non-zero values, so it is not
-degenerate and its published track id stands.
+The silence fingerprint is shared by 172 files of one deployed
+library, whose durations run from 120 to 40150 seconds.
 
 ## 6.2 Tag stripping
 

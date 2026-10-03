@@ -43,7 +43,7 @@ Each script exits non-zero on any verification failure.
 | F8  | `gen-library-address-vector.mjs`    | §3.6.1, §3.6.2                  | Address from (key, type, discriminator); `library` reproduces F3; identity library address. (v1.1) |
 | F9  | `gen-meta-log-vector.mjs`           | §4.8.1, §4.8.2                  | Signed identity-library entries: library, link, pin PUTs and a link DEL; current state per (type, key). (v1.1) |
 | F10 | `gen-capability-vector.mjs`         | §3.5.5 – §3.5.10                | Capability, write, revocation; reference verifier with accept, inert, and reject cases, including delegation. (v1.1) |
-| F11 | `gen-fingerprint-vector.mjs`        | §6.1.6, §6.4.1                  | Chromaprint fingerprint decode; degenerate classification at the 1-in-20 threshold; F7 stays valid. (v1.1) |
+| F11 | `gen-fingerprint-vector.mjs`        | §6.1.6, §6.4.1                  | Chromaprint fingerprint decode; degenerate when one value fills 19 in 20 positions; silence (b8702767) and the F7 sine reject, music passes. (v1.1) |
 
 ## Toolchain pinning
 
