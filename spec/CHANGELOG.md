@@ -1,5 +1,9 @@
 # Record Protocol Specification — Changelog
 
+## v1.1.2 — 2026-10-03
+
+API addition, no protocol or vector change. Chapter 7 is version 1.2.0. It adds `PATCH /tracks/{id}`, which corrects a track's audio metadata: the node writes a new content object for the same audio with `content.tags` changed and appends a superseding PUT of the same id. Before this, a label fix after ingest needed a delete and a re-import, which leaves a tombstone. Each given tag is set, `null` removes one, and `acoustid_fingerprint` cannot change. The audio, artwork, resolver records, and envelope labels are kept. §2.4.3 now says how a `content.tags` correction differs from relabelling.
+
 ## v1.1.1 — 2026-10-03
 
 Erratum, no vector change.

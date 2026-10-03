@@ -233,7 +233,9 @@ Track envelopes MAY carry a top-level `tags: <string[]>` array. These
 are library-scoped labels applied by the writing peer (distinct from
 `content.tags` which are audio metadata). The labels live on the
 envelope so that re-labelling the same audio produces a new oplog entry
-with the same content CID.
+with the same content CID. Correcting `content.tags` instead writes a new
+content object for the same audio, with the same `hash`, and a new PUT
+of the same id, which supersedes the old one (§4.4.2).
 
 ```
 {
