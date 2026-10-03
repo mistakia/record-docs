@@ -63,6 +63,11 @@ linked libraries:
 The message body MUST be JSON-encoded and published via the
 pubsub layer.
 
+An identity that owns several `recordstore` libraries announces one
+of them as `about` and lists the others in `logs`, with its linked
+libraries (§4.8.4). An identity library has no About entry and MUST
+NOT be announced.
+
 **LoadedAboutEntry shape.** Each `LoadedAboutEntry` is a JSON
 serialisation of a signed log entry (§4.1.1) with one
 transformation: the envelope `content` field, which on the wire
@@ -166,6 +171,9 @@ On receiving an announcement:
 Replication is performed per-library. Peers publish to and
 subscribe from a pubsub topic equal to the library address
 string.
+
+Identity libraries (§4.8) replicate by this same protocol, on the
+topic equal to their address.
 
 ### 5.4.1 Heads exchange
 
@@ -295,7 +303,7 @@ traversal for any unresolved entries recorded at pause time
 before publishing a new heads message. Resume MUST NOT re-fetch
 entries that already landed locally.
 
-**Unlink.** When a library is unlinked the implementation
+**Unlink.** When a library is unlinked (§4.8.4) the implementation
 SHOULD pause the library, unsubscribe from its pubsub topic,
 discard any unresolved-fetch state, and remove unique content
 as described in §4.6.

@@ -257,6 +257,10 @@ with the same content CID.
 }
 ```
 
+From v1.1, links are recorded in the identity library (§4.8.4).
+Writers no longer append Log PUTs, and readers still apply Log
+entries written before v1.1.
+
 ## 2.6 About payload
 
 `about`-type entries describe the *owning* library (the library whose
@@ -333,13 +337,14 @@ Requirements:
 - A `DEL` operation MUST carry `value.type` equal to either `"track"`
   or `"log"`. About entries MUST NOT be deleted in this version.
 - A `DEL` operation MUST NOT carry a content CID.
-- A received entry whose `payload` is a `DEL` with `value.type` equal
-  to `"about"`, `"listen"`, or any value other than `"track"` or
-  `"log"` MUST be rejected at the append-verification step
+- A received entry in a `recordstore` library whose `payload` is a
+  `DEL` with `value.type` equal to `"about"`, `"listen"`, or any value
+  other than `"track"` or `"log"` MUST be rejected at the append-verification step
   (§3.5.4 / §4.5) and MUST NOT be added to the local oplog.
 - In a `listens`-type library (§2.7) the only valid operation shape is
   a listen-entry write; `DEL` operations MUST be rejected by both the
   writer (on local append) and any replicating peer (on remote merge).
+- In an `identity` library (§4.8), `DEL` operations follow §4.8.2.
 
 ## 2.8.3 Size bounds
 

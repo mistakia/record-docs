@@ -145,6 +145,10 @@ When applying an entry to local state:
 4. Track the entry in a local index so the implementation can query
    "what is the current state of key K in library L?"
 
+This dispatch applies to `recordstore` libraries. A `listens` library
+holds only listen writes (§2.7), and an `identity` library dispatches
+by record type (§4.8.2).
+
 ### 4.4.2 Current-state resolution
 
 For any given `(library_address, entry_id)` tuple, the "current"
@@ -268,3 +272,129 @@ fully derivable from the oplog: rebuilding from scratch MUST
 yield the same state as incremental maintenance. The query
 database schema is not part of the protocol and is invisible
 to peers.
+
+## 4.8 Identity library
+
+An identity library, also called the identity meta-log, records an
+identity's own libraries, its links, and its pins. It is a library
+in the §4.1 sense, a signed append-only log under a §3.5 access
+controller, with library type `identity`, at the address §3.6.2
+derives from the identity key `K`.
+
+### 4.8.1 Writers and entries
+
+The identity library's `write` list is exactly `[K]`. Its entries
+are §4.1 signed entries whose `payload` is a PUT or DEL operation
+(§2.8) carrying a record inline, with no envelope and no content CID,
+as a listens library does (§2.7). Keeping each record in the signed
+entry means reading the identity library takes no payload fetches.
+
+A receiver MUST reject an entry in an identity library whose signer
+is not `K` (§3.5.4) or whose operation carries `capability_id`
+(§3.5.9). The size bounds of §2.8.3 apply.
+
+### 4.8.2 Records
+
+| Record    | PUT means                      | DEL means           | `key`             |
+| --------- | ------------------------------ | ------------------- | ----------------- |
+| `library` | `K` owns the library           | the library retires | `sha256(address)` |
+| `link`    | `K` follows the library        | unlink              | `sha256(address)` |
+| `pin`     | retain the blob (§4.6.2)       | unpin               | `sha256(cid)`     |
+
+PUT values:
+
+```
+{ type: "library", v: 1, timestamp: <uint64>, address: <string> }
+{ type: "link",    v: 1, timestamp: <uint64>, address: <string>, alias: <string>? }
+{ type: "pin",     v: 1, timestamp: <uint64>, cid: <string> }
+```
+
+A DEL value is `{ type, timestamp }`, as in §2.8.2, with `type`
+naming the record.
+
+- `address` MUST be a library address (§3.6).
+- `alias`, when present, MUST be at most 128 UTF-8 bytes.
+- `cid` is an audio blob CID in the form §2.4.1 stores it: the
+  base58btc string for a CIDv1, or the `Qm...` string for a legacy
+  CIDv0.
+- `timestamp` is milliseconds since the Unix epoch, as in §2.2.
+- `key` is the lowercase-hex sha256 of the UTF-8 string, as in §2.3.
+
+**Current state.** For each `(type, key)` pair, the current record is
+chosen by the §4.4.2 ordering, with the record `timestamp` in place
+of the envelope timestamp. Resolution is per `(type, key)` rather
+than per key, because a `library` record and a `link` record for the
+same address share a key.
+
+**Unknown records.** A receiver MUST merge an entry signed by `K`
+whose record `type` it does not recognise, and MUST give that entry
+no state effect. Later versions can then add record kinds without
+stalling v1.1 replicas.
+
+### 4.8.3 Own libraries
+
+A library is an own library of `K` when its current `library` record
+is a PUT and its AC `write` list (§3.5.1) contains `K`. A reader MUST
+check the write list before treating a recorded library as owned, so
+an identity library cannot claim another identity's library. A
+record that fails the check has no effect.
+
+An implementation holding `K` MUST record with a `library` PUT every
+library it creates for `K`. It MUST also record each own library it
+created before v1.1, the first time it opens `K` at v1.1, so the
+identity library lists every own library. Concurrent duplicate PUTs
+from two devices resolve per §4.4.2 and are harmless.
+
+**Retirement.** A DEL of a `library` record retires the library. A
+retired library stays a valid library (§3.3): its entries remain
+valid, and peers that link it are unaffected. Implementations holding
+`K` MUST refuse new local writes to a retired library and MUST NOT
+count it as an own library when choosing a default write target
+(chapter 7). They MAY keep replicating and announcing it. A later
+PUT of the same key restores it.
+
+**Listens.** An identity has at most one active own library of type
+`listens`, and its listens are written there (§6.5).
+
+### 4.8.4 Links
+
+`K`'s link set is the set of addresses whose current `link` record is
+a PUT. Writers MUST record links and unlinks in the identity library,
+and MUST NOT append new Log PUTs (§2.5) to a recordstore library.
+
+Log entries written before v1.1 stay readable as links, so no
+migration is needed. Where both sources speak, the identity library
+wins:
+
+- For an address with any `link` record in the identity library, PUT
+  or DEL, the current `link` record alone decides whether it is
+  linked, and supplies the alias.
+- For an address with no `link` record, a live Log entry in any own
+  library of `K`, active or retired, links it with that entry's
+  alias, as in v1.0.
+
+The identity library wins because a v1.1 writer records every link
+change there, so any record there is newer intent than a legacy Log
+entry. Comparing the two by clock is not possible: Lamport clocks of
+different logs are unrelated (§4.2).
+
+When unlinking an address that a legacy Log entry in an own library
+links, a writer SHOULD also append a Log DEL to that library, so v1.0
+peers reading it see the unlink.
+
+### 4.8.5 Replication across devices
+
+Every implementation holding `K`'s private key MUST open `K`'s
+identity library and replicate it per §5.4, so the identity's
+libraries, links, and pins converge across its devices. Concurrent
+writes from two devices holding the same key produce several heads,
+which merge per §4.5. Any other peer MAY replicate an identity
+library; like every library, it is public.
+
+### 4.8.6 v1.0 peers
+
+A v1.0 peer refuses to open an identity library, because step 1 of
+the §3.5.1 resolution rejects its manifest type. Nothing a v1.0 peer
+reads refers to an identity library, so the only effect is that v1.0
+peers do not see the links, pins, and retirements recorded there.
+They still see Log entries written before v1.1.

@@ -37,15 +37,21 @@ implementations.
 
 Implementations SHOULD persist the identity keystore locally and SHOULD
 be able to recreate an identity from its persisted private key bytes.
-Implementations MAY support multiple identities per peer but each
-library has exactly one writer identity (see §3.5).
+Implementations MAY support multiple identities per peer.
 
-Identity rotation means creating a new identity and a new library
-(§1.2.3). The abandoned library's entries remain valid signed
-objects; replicating peers MUST NOT treat the old library as
+An identity MAY own any number of libraries (§3.6.1), which it
+records in its identity library (§4.8). Each library's access
+controller is still fixed at creation (§3.5), and an identity owns a
+library when its key is in that library's `write` list. Another
+identity appends to a library only under a capability the owner
+issues (§3.5.5).
+
+Identity rotation means creating a new identity and new libraries
+(§1.2.3). The abandoned libraries' entries remain valid signed
+objects; replicating peers MUST NOT treat an old library as
 invalid merely because the writer has stopped appending.
-Federation between the old and new libraries, if desired, is
-achieved by a Log entry (§2.5) from one to the other.
+Federation between the old and new identities, if desired, is
+achieved by the new identity linking the old libraries (§4.8.4).
 
 ## 3.4 Entry signing
 
@@ -217,7 +223,7 @@ forming a chain:
    ```
    {
      name:             <string>,
-     type:             "recordstore" | "listens",
+     type:             "recordstore" | "listens" | "identity",
      accessController: "<ac-wrapper-cid>"
    }
    ```
@@ -338,6 +344,63 @@ library address string is:
 
 Implementations MUST use this exact address form. Addresses MUST
 be treated as opaque strings for transport and comparison.
+
+The `identity` library type (§4.8) is new in v1.1. A v1.0
+implementation never creates one, and refuses to open one at step 1
+of the §3.5.1 resolution procedure.
+
+### 3.6.1 Library discriminator
+
+The manifest `name` is the library's **discriminator**: it tells
+apart the libraries one identity owns. For a library whose `write`
+list is the single key `K`, all three chain objects (§3.5.1) are
+functions of `K`, the library type, and the discriminator, so the
+address is too:
+
+```
+write_list = { write: [K] }
+wrapper    = { params: { address: cid(write_list) }, type: "static" }
+manifest   = { name: discriminator, type: library_type, accessController: cid(wrapper) }
+address    = "/record/" + cid(manifest) + "/" + discriminator
+```
+
+`cid(x)` is the §2.1 content CID of the dag-cbor encoding of `x`,
+as a base58btc string.
+
+An implementation creating a library for identity `K` MUST derive
+its address this way. A new discriminator MUST match §3.7 and MUST
+be 1 to 64 characters long. Two libraries of one identity with the
+same type and discriminator are the same library, so a creator MUST
+NOT reuse a discriminator that the identity library records for that
+type (§4.8.2), whether that library is active or retired. Reusing it
+would reopen the retired library rather than create a new one.
+
+The discriminator is visible in the address and is not a display
+name; a library's display name belongs in its About entry (§2.6).
+
+**Compatibility.** A v1.0 library created with a single-key `write`
+list already has this address: it is the derivation for its name.
+record-node, for example, names its two v1.0 libraries `library`
+(type `recordstore`) and `listens` (type `listens`). A v1.0 library
+created another way stays valid and loadable (§3.5.3), and the
+identity library records its address as it is (§4.8.3).
+
+### 3.6.2 Identity library address
+
+Each identity has exactly one identity library (§4.8). Its address
+is the §3.6.1 derivation with library type `identity` and
+discriminator `identity`:
+
+```
+manifest = { name: "identity", type: "identity", accessController: cid(wrapper) }
+address  = "/record/" + cid(manifest) + "/identity"
+```
+
+The address depends on `K` alone. A device that imports a key
+therefore computes the identity library address without any other
+input, and from that library learns the identity's own libraries,
+links, and pins. Because a v1.0 implementation cannot create a
+library of type `identity`, no v1.0 library has this address.
 
 ## 3.7 Library name character set
 
