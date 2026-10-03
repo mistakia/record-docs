@@ -573,6 +573,34 @@ A revocation may name a capability outside its causal past. It then
 makes inert every entry that depends on that capability, which lets
 an owner revoke a delegated grant it has not yet seen.
 
+**Reference vector.** `spec/fixtures/gen-capability-vector.mjs`
+builds entries in the §3.5.1 library, owned by the §3.4.5 test key
+(`k = 1`), with test keys `k = 2` and `k = 3` as grantees, and checks
+each verdict with a reference verifier. Capability `C` lets `k = 2`
+append Track envelopes tagged `friends-mix` until an expiry. Its
+capability id, and the hashes of a write under it and of the owner's
+revocation of it, are:
+
+```
+C (capability id): zBwWX61Hk9TaWwav3Kd5fTzdx4TEyJTU4NzSjhqDqDjyz9UoQPm7poFUmfJMQxUQU6VCbbF53C9MJbQW8HZGdwiNSb1Y1
+W (write under C): zBwWX9GLKF4xVufTPhStjkvwmB1NV2imR8QiGJD755BqTdsPc51ur6hEyS3qBoTwj9mcofwTYhPwvcSog53hmjp2f2NL8
+R (revokes C):     zBwWX7UthQBfd1XSMNssAhMwaKo38puex8DcjceV4cV3Gn59nkJYyvoDivq62GeFaEeskziMh6wb5EwBuLnUcn5DUsSwx
+```
+
+| Entry                                                    | Verdict                          |
+| -------------------------------------------------------- | -------------------------------- |
+| `W`, by `k = 2`, in `R`'s causal past                    | accept                           |
+| a write by `k = 2` under `C`, concurrent with `R`        | accept, then inert               |
+| a write under `C` signed by `k = 3`                      | reject: grantee                  |
+| a write under `C` tagged `other`                         | reject: filter                   |
+| a write under `C` timestamped after the expiry           | reject: condition                |
+| a write citing `C` with `C` outside its causal past      | reject: causal past              |
+| an About PUT under `C`                                   | reject: action                   |
+| a write by `k = 2` with no `capability_id`               | reject: §3.5.4                   |
+| a write under an owner capability whose filter is `not` over an unknown node | reject: fails closed |
+| a write by `k = 3` under a capability `k = 2` delegated within its grant | accept           |
+| an About PUT by `k = 3` under a delegated grant of `library.update_about` that the delegating capability lacks | reject: action up the chain |
+
 ### 3.5.11 Compatibility with v1.0 peers
 
 Capabilities add entries to a static-AC library. They change neither
@@ -666,6 +694,25 @@ therefore computes the identity library address without any other
 input, and from that library learns the identity's own libraries,
 links, and pins. Because a v1.0 implementation cannot create a
 library of type `identity`, no v1.0 library has this address.
+
+**Reference vector.** `spec/fixtures/gen-library-address-vector.mjs`
+derives four addresses for the §3.4.5 test key. All four share the
+§3.5.1 write-list and wrapper CIDs, and the first equals the §3.5.1
+address, so the v1.1 derivation leaves the v1.0 address unchanged.
+
+| Type          | Discriminator | Manifest CID (base58btc CIDv1) |
+| ------------- | ------------- | ------------------------------ |
+| `recordstore` | `library`     | `zBwWX6eaeb5ZhToR5AL62215fMiLTZYAtYpnDcBCebF4PJiLWK2n8MnGCArMMZc3nbLvaCGsg51etXpMrdVH5rgd9DUf8` |
+| `listens`     | `listens`     | `zBwWX67a7mbUHRB8maxG6K3CdGyfRLnTv2bFGhvmmpw1SA4Aqku6qy8y6FUar8S9SXrTrkokZH9jTjtQBDRZ6HpELshLu` |
+| `recordstore` | `mixes`       | `zBwWX7ayGQu2GevKxpfRiHbcuNjtqkbRghTqUtCPRKbeRGLdtphXDbHThj9HcnMwMXQhF9GZY9rhYt7Yaibr4Z5Bsed4o` |
+| `identity`    | `identity`    | `zBwWX5yfKGoxN42dyykh9tRxq4CjbydSPBpNkVzLe5bmjCRib33F7AiUsRGchrTCgvjDvRVJsC89Rv7Wfk17n8sqMkEFx` |
+
+Each address is `/record/<manifest-cid>/<discriminator>`. The
+identity library address of the test key is:
+
+```
+/record/zBwWX5yfKGoxN42dyykh9tRxq4CjbydSPBpNkVzLe5bmjCRib33F7AiUsRGchrTCgvjDvRVJsC89Rv7Wfk17n8sqMkEFx/identity
+```
 
 ## 3.7 Library name character set
 

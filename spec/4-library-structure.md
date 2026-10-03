@@ -416,6 +416,20 @@ of the envelope timestamp. Resolution is per `(type, key)` rather
 than per key, because a `library` record and a `link` record for the
 same address share a key.
 
+**Reference vector.** `spec/fixtures/gen-meta-log-vector.mjs` signs
+four entries into the identity library of the §3.4.5 test key
+(§3.6.2), each with `next` naming the one before:
+
+| Entry | Operation                                              | Signed bytes | `entry.hash` (base58btc CIDv1) |
+| ----- | ------------------------------------------------------ | ------------ | ------------------------------ |
+| 1     | `library` PUT of the §3.5.1 library                    | 682          | `zBwWX6yJT8sDseJEr3iaGgYqsKiejaKBizBNPiSDeoV2yXHjkXXqcHL6JYF7xqGy5m9WQT1scdXRmh3BLoq7xp8K7VLZC` |
+| 2     | `link` PUT of test key `k = 2`'s `library`, alias `friend` | 785      | `zBwWX6tGPpW4hsRc5AhPJJhFVopAeJXmjzj9zm1aXrvnoUo9XdGZ2gRiAcmSFdovBmfHnC8rc4ny59uWSrJGAz93gdT1J` |
+| 3     | `pin` PUT of the §6.2.4 audio CID                      | 709          | `zBwWX8SQW6MJZuniaHocMBhx5rZsFmDRDEbRavhX83z4HdzvWs4dKC7jzP8BW9c882sNhfSahAxtLHmAYaSPmKoC52Xh5` |
+| 4     | `link` DEL of entry 2's address                        | 650          | `zBwWX8mh7M6JwiaAUzz7KTtjq6L7MZogzqXVqHisMzsqYCgWTHjjhEhZaXtYSmLSfBZvQYKAn7o8YKodMmtSGpBLLd5ik` |
+
+After all four, the library record and the pin are current PUTs and
+the link is a current DEL.
+
 **Unknown records.** A receiver MUST merge an entry signed by `K`
 whose record `type` it does not recognise, and MUST give that entry
 no state effect. Later versions can then add record kinds without

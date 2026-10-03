@@ -20,6 +20,10 @@ node gen-ac-chain-vector.mjs
 node gen-current-state-vector.mjs
 node gen-network-message-vector.mjs
 node gen-audio-pipeline-smoke.mjs
+node gen-library-address-vector.mjs
+node gen-meta-log-vector.mjs
+node gen-capability-vector.mjs
+node gen-fingerprint-vector.mjs
 ```
 
 Each script exits non-zero on any verification failure.
@@ -36,10 +40,14 @@ Each script exits non-zero on any verification failure.
 | F5  | `gen-current-state-vector.mjs`      | §4.4.2                          | Three-entry race set + `(clock.time DESC, timestamp DESC, hash ASC)` ordering rule.  |
 | F6  | `gen-network-message-vector.mjs`    | §5.3.2, §5.4.1                  | LoadedAboutEntry inline-content transform + heads message size bound check.          |
 | F7  | `gen-audio-pipeline-smoke.mjs`      | §5.5.1, §6.1, §6.2, §6.4        | fpcalc fingerprint + sha256 track_id + ffmpeg tag-strip + unixfs-v1-2025 audio CID; multi-block CID vector. |
+| F8  | `gen-library-address-vector.mjs`    | §3.6.1, §3.6.2                  | Address from (key, type, discriminator); `library` reproduces F3; identity library address. (v1.1) |
+| F9  | `gen-meta-log-vector.mjs`           | §4.8.1, §4.8.2                  | Signed identity-library entries: library, link, pin PUTs and a link DEL; current state per (type, key). (v1.1) |
+| F10 | `gen-capability-vector.mjs`         | §3.5.5 – §3.5.10                | Capability, write, revocation; reference verifier with accept, inert, and reject cases, including delegation. (v1.1) |
+| F11 | `gen-fingerprint-vector.mjs`        | §6.1.6, §6.4.1                  | Chromaprint fingerprint decode; degenerate classification at the 1-in-20 threshold; F7 stays valid. (v1.1) |
 
 ## Toolchain pinning
 
-F0–F6 and the CID step of F7 are pure JavaScript and pin to exact
+F0–F6, F8–F11, and the CID step of F7 are pure JavaScript and pin to exact
 dependency versions in `package.json`:
 
 | Dependency             | Pinned version |

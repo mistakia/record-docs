@@ -115,6 +115,21 @@ Degeneracy is a writer rule (§6.4.1). A degenerate fingerprint is
 still a valid `acoustid_fingerprint`, and an existing entry carrying
 one keeps its id (§6.1.4).
 
+**Reference vector.** `spec/fixtures/gen-fingerprint-vector.mjs`
+decodes and classifies four fingerprints. It needs no fpcalc: it
+checks its encoder reproduces the §6.1.5 string from the decoded
+values, then builds the others with it.
+
+| Fingerprint                                  | Values | Non-zero | Degenerate |
+| -------------------------------------------- | ------ | -------- | ---------- |
+| `AQAAE0mUaEkSZSoAAAAAAAAA` (§6.1.5)          | 19     | 19       | no         |
+| all zero, `AQAD6AAAAA...` (506 characters)   | 1000   | 0        | yes        |
+| `AQAAFEmUaEkSZSqSKNGSJMpUAAAAAAAAAA`         | 20     | 1        | no         |
+| `AQAAFUmUaEkSZSqSKNGSJMpUAAAAAAAAAAA`        | 21     | 1        | yes        |
+
+The §6.1.5 sine decodes to 19 equal non-zero values, so it is not
+degenerate and its published track id stands.
+
 ## 6.2 Tag stripping
 
 ### 6.2.1 Requirement
