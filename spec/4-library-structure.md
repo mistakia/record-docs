@@ -146,8 +146,8 @@ as the primary ordering, the envelope `timestamp` as the first
 tiebreaker, and `entry.hash` as the final tiebreaker. The `entry.hash`
 used for the final tiebreaker is the CID of the signed dag-cbor entry
 object (§4.1.2) compared as a byte string; because this CID is a pure
-function of the signed bytes (all fields including `key`, `identity`,
-and `sig`), two conformant peers that have received the same set of
+function of the signed bytes (all fields including `key` and
+`sig`), two conformant peers that have received the same set of
 signed entries MUST agree on the ordering. String comparison MUST be
 performed on the raw multihash bytes of the CID (not the base58btc
 string), so encoding choice cannot affect the result.
