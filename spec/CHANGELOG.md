@@ -1,5 +1,13 @@
 # Record Protocol Specification — Changelog
 
+## v1.1.1 — 2026-10-03
+
+Erratum, no vector change.
+
+- **Overview status.** `spec/1-overview.md` read "v1.1.0-draft" at the v1.1.0 release. It now reads v1.1.1.
+- **record-node's own library name.** §3.6.1 and the chapter 7 `own_library_address` fallback said record-node names its v1.0 own recordstore library `library`. record-node names it `record`, so the fallback named a library record-node never creates. Both now say `record`. The §3.6.2 and §4.8.2 vectors keep the test library's discriminator `library`.
+- **Resolver failures.** Chapter 7 had no response for a resolver failure on a URL the resolver accepts as input: a missing resolver binary, an unavailable format, an upstream 404, a timeout. Implementations answered 500. `/resolve` and `/import/url` now answer 502 with the new code `RESOLVER_FAILED`, and the error's new `resolver_code` field carries the resolver's own code. A URL the resolver refuses as input stays 400 `VALIDATION_ERROR`. Chapter 7 is version 1.1.1.
+
 ## v1.1.0 — 2026-10-03
 
 Minor version, per task `user:task/record/record-protocol-v1-1-multi-library-and-capabilities.md`. Every v1.0 library, entry, address, and track id from a conforming writer stays valid. New entry kinds are additive, and §3.5.11 and §4.8.6 state what a v1.0 peer does with each. Two v1.0 vectors change status: the §6.1.5 sine source is replaced because its fingerprint is degenerate, and the §4.4.2 race set's inputs, which have empty `next` above clock 1, are ordering inputs only and would not pass the new clock check.

@@ -763,7 +763,7 @@ name; a library's display name belongs in its About entry (§2.6).
 
 **Compatibility.** A v1.0 library created with a single-key `write`
 list already has this address: it is the derivation for its name.
-record-node, for example, names its two v1.0 libraries `library`
+record-node, for example, names its two v1.0 libraries `record`
 (type `recordstore`) and `listens` (type `listens`). A v1.0 library
 created another way stays valid and loadable (§3.5.3), and the
 identity library records its address as it is (§4.8.3).

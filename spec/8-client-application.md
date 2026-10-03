@@ -766,7 +766,7 @@ makes every node request on the renderer's behalf (§8.10.7).
 ### 8.7.6 Endpoint surface consumed
 
 The application consumes the HTTP/WS API defined in protocol §7
-(`7-http-api.yaml`, v1.1.0). Its multi-library, capability, and replication
+(`7-http-api.yaml`, v1.1.1). Its multi-library, capability, and replication
 endpoints implement §3.5.5–§3.5.11, §4.6, and §4.8. No subset; no additional
 endpoints beyond the spec.
 
