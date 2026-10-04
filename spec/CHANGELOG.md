@@ -1,5 +1,9 @@
 # Record Protocol Specification — Changelog
 
+## v1.1.4 — 2026-10-04
+
+Client change, no protocol, API, or vector change. §8.2.4 no longer requires a Developer ID signature and notarization, because a Developer ID certificate puts the account holder's legal name into every copy of the app. A release build must still carry a code signature that seals the whole bundle, which an ad-hoc signature meets, and its install instructions must explain the first-launch approval macOS then asks for. §8.2.3 drops "signed and notarized" from the `.dmg`. Update integrity is unchanged: §8.10.10 already verifies every update against a pinned key.
+
 ## v1.1.3 — 2026-10-03
 
 API addition, no protocol or vector change. Chapter 7 is version 1.3.0, with two fields record-app asked for. `Track.library_addresses` lists the libraries, among those a request covers, that hold a live PUT of the track; a list folds such a track into one item, so a client could not tell which libraries hold it. `Library.audio_size_bytes` totals the audio of the library's live tracks, for the §8.9.1 replication-policy storage estimate.

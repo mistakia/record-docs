@@ -83,7 +83,7 @@ legacy record-app are not part of this specification.
 
 ### 8.2.3 Distribution
 
-- Signed and notarized `.dmg` for direct download.
+- `.dmg` for direct download.
 - `.zip` of the `.app` bundle for auto-update payloads.
 - Universal binary covering Apple Silicon and Intel.
 - Distribution via download page. Mac App Store distribution is out of scope:
@@ -91,9 +91,16 @@ legacy record-app are not part of this specification.
 
 ### 8.2.4 Code signing
 
-- Builds MUST be signed with a Developer ID certificate and notarized via
-  Apple's notary service before release.
-- Unsigned builds MAY be produced for development only.
+- Release builds MUST carry a code signature that seals the whole bundle, so
+  macOS can verify the app is unaltered since the build. An ad-hoc signature
+  meets this.
+- A Developer ID signature and notarization are OPTIONAL. A Developer ID
+  certificate carries the account holder's legal name into every copy of the
+  app. Without one, macOS blocks the first launch until the user approves the
+  app under System Settings > Privacy & Security, and the release's install
+  instructions MUST say how.
+- Update integrity does not rest on the code signature: every update verifies
+  against the pinned key of §8.10.10.
 
 ### 8.2.5 Auto-update
 
