@@ -1,5 +1,9 @@
 # Record Protocol Specification — Changelog
 
+## v1.2.4 — 2026-10-09
+
+API addition, no protocol or vector change. Chapter 7 is version 1.7.0: `POST /images` stores an uploaded image, so a client can set a library's `avatar` to an image of its own. The node imports and pins the blob as ingest does artwork, and answers 201 with its CID and sniffed type. It refuses a file over 16 MiB with 413 and one that does not sniff as `image/*` with 400, the limits `GET /images/{cid}` serves under.
+
 ## v1.2.3 — 2026-10-09
 
 API addition, no protocol or vector change.
