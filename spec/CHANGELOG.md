@@ -1,5 +1,13 @@
 # Record Protocol Specification — Changelog
 
+## v1.2.2 — 2026-10-09
+
+Content-processing clarification and API addition, no protocol or vector change.
+
+- **Decoded fields.** §6.3.2 derives `duration`, `numberOfSamples`, and `bitrate` from the decoded audio: the decoded duration, the decoded sample count per channel, and the blob's average bitrate `round(size × 8 / duration)`. A container's own figures can be several times off. A VBR MP3 without a VBR header reports its first frame's bitrate, and a deployed library held 239 entries whose container-estimated durations were 5 to 10 times too long.
+- **Audio re-derivation.** New §6.4.4 recomputes those three fields from the audio blob an entry already names and, when any differs, appends a superseding PUT with only them changed. Re-deriving an entry a second time appends nothing.
+- **Chapter 7** is version 1.5.0: `POST /tracks/{id}/rederive`.
+
 ## v1.2.1 — 2026-10-09
 
 Erratum to §5.6 from a second review of the v1.2.0 modes, no vector or API change.

@@ -273,6 +273,19 @@ the specified types when present (any field MAY be omitted or
 | `tagTypes`         | string[]|                                       |
 | `trackInfo`        | object  | passthrough from metadata library     |
 
+**Decoded fields.** Three fields are functions of the decoded audio,
+so every writer derives them the same way:
+
+- `duration` is the decoded duration (§6.4.1 step 4).
+- `numberOfSamples` is the decoded sample count per channel.
+- `bitrate` is the audio blob's average, `round(size × 8 / duration)`,
+  with `size` the blob size (§2.4.1).
+
+Writers SHOULD store these values rather than the container's. A
+container's figures can be far off: a VBR MP3 without a VBR header
+reports its first frame's bitrate, and a metadata library that
+estimates the duration from that bitrate overstates it several times.
+
 Implementations MUST NOT coerce missing fields to `0` — the correct
 representation for unknown is omission or `null`. `codec` and
 `container` are not controlled vocabulary in v1; implementations
@@ -322,7 +335,8 @@ The canonical ingest path for a local audio file is:
    It is a function of the audio alone, unlike a container's
    reported duration. If the decoded sample count is zero, the
    implementation MUST reject the ingest. Writers SHOULD store the
-   decoded duration as `content.audio.duration`.
+   decoded fields of §6.3.2, the decoded duration among them as
+   `content.audio.duration`.
 5. Extract artwork from `metadata.common.picture` into a separate
    collection and remove it from `metadata.common`.
 6. Produce a tag-stripped copy of the audio in a temporary location
@@ -363,7 +377,8 @@ container-reported duration rather than the decoded one, so the step
 3 check against v1.0 data depends on the original writer's metadata
 library. A v1.0 entry whose stored duration is off by more than 30
 seconds makes a matching ingest look like a collision. The rule is
-unchanged; such an ingest is refused and reported.
+unchanged; such an ingest is refused and reported. A writer corrects
+the stored duration by re-derivation (§6.4.4).
 
 **End-to-end reference.** `spec/fixtures/gen-audio-pipeline-smoke.mjs`
 exercises steps 1–2 and 6–7 of this pipeline against the committed
@@ -405,6 +420,29 @@ by CID) proceeds as:
 
 Implementations MUST validate the content object's required fields
 (§2.4.1) before accepting it.
+
+### 6.4.4 Audio re-derivation
+
+A writer MAY recompute the decoded fields (§6.3.2) of a track entry it
+may write, from the audio blob the entry already names. This corrects
+an entry whose writer stored a container's figures.
+
+1. Read the audio blob at `content.hash`. If it is not available, fail
+   and append nothing.
+2. Decode the blob as §6.4.1 step 4 decodes a source file. Tag
+   stripping preserves the audio bytes exactly (§6.2.2), so the blob
+   decodes to the source's samples. If the decoded sample count is
+   zero, fail and append nothing.
+3. Compute `duration`, `numberOfSamples`, and `bitrate` per §6.3.2.
+4. If all three equal the stored values, stop. Otherwise write a new
+   content object equal to the current one except for those three
+   fields of `content.audio`, and append a PUT of it under the same id
+   with the envelope's labels (§2.4.3) kept, which supersedes the
+   current entry (§4.4.2).
+
+The fingerprint, the track id, the blob and its size, the tags, the
+artwork, the resolver records, and every other `content.audio` field
+are unchanged. Re-deriving an entry a second time appends nothing.
 
 ## 6.5 Listens recording
 
