@@ -50,8 +50,9 @@ runs.
   dropped.
 - **Announce.** A node MUST announce (`announce_peer`) only a TCP
   port it has confirmed is reachable from outside its network:
-  one AutoNAT has confirmed or one a UPnP mapping has opened
-  (§5.5.2). A node with no confirmed port MUST NOT announce and
+  one AutoNAT has confirmed, one a UPnP mapping has opened
+  (§5.5.2), or one its operator configured as a reachable public
+  address. A node with no confirmed port MUST NOT announce and
   only looks up. The mainline DHT stores the UDP source address
   of the announce, so announcing an unmapped internal port would
   publish an undialable address. A node SHOULD re-announce before

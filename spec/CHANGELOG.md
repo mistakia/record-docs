@@ -4,7 +4,7 @@
 
 Minor version: network discovery, reachability and masking. No data-model, entry, or vector change; every v1.1 node interoperates with a v1.2 `public` node.
 
-- **Mainline rendezvous.** §5.2.1 makes the BitTorrent mainline DHT the shared bootstrap service, on the info hash `sha1("record-network-v1")`. A node announces only a TCP port AutoNAT confirmed or UPnP mapped, and otherwise only looks up; found addresses are dialed directly. Announcing makes a node's IP public, and the section says so.
+- **Mainline rendezvous.** §5.2.1 makes the BitTorrent mainline DHT the shared bootstrap service, on the info hash `sha1("record-network-v1")`. A node announces only a TCP port AutoNAT confirmed, UPnP mapped, or its operator configured as reachable, and otherwise only looks up; found addresses are dialed directly. Announcing makes a node's IP public, and the section says so.
 - **Transports and NAT traversal.** §5.5.2 keeps TCP as the transport and forbids any transport that skips the pre-shared key protector, such as QUIC and WebRTC. A `public` node runs AutoNAT, UPnP, circuit relay v2 and DCUtR, and its relay server keeps the default limits so it coordinates hole punches rather than carrying content.
 - **Network modes.** New §5.6 defines `public`, `masked` and `relayed`. A masked node dials every connection outbound through a Tor SOCKS5 proxy, listens on and advertises nothing, and bootstraps by dialing a public node through Tor; onion-service listening is not defined. A relayed node listens and advertises only a circuit address on one named relay and dials only that relay and LAN addresses. §5.6.4 sets the identify agent string to `record-node/<major>.<minor> (<mode>)`.
 - **Chapter 7** is version 1.4.0: `Settings.network_mode`.
