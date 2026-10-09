@@ -1,5 +1,12 @@
 # Record Protocol Specification — Changelog
 
+## v1.2.1 — 2026-10-09
+
+Erratum to §5.6 from a second review of the v1.2.0 modes, no vector or API change.
+
+- **`relayed`** runs the content-network DHT in server mode, so peers find it by peer id at its circuit address; v1.2.0 had it a client, which left it unfindable. It drops LAN discovery and refuses LAN dials as well as public ones, dialing only its relay and circuit addresses through it, so a remote peer cannot steer it into its own network.
+- **`masked`** discards private addresses the DHT returns, may run a circuit relay client without reservations so it can reach a relayed node, and passes hostnames to the SOCKS5 proxy unresolved.
+
 ## v1.2.0 — 2026-10-09
 
 Minor version: network discovery, reachability and masking. No data-model, entry, or vector change; every v1.1 node interoperates with a v1.2 `public` node.

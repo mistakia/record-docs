@@ -467,7 +467,7 @@ node can be reached and bounds what it advertises and dials.
 | --- | --- | --- | --- |
 | `public` | anyone | its confirmed public addresses | anyone, directly |
 | `masked` | no one | nothing | outbound only, through Tor |
-| `relayed` | anyone, through one named relay | only its circuit address on that relay | the named relay and LAN addresses only |
+| `relayed` | anyone, through one named relay | only its circuit address on that relay | the named relay and circuit addresses through it only |
 
 ### 5.6.1 `public`
 
@@ -485,7 +485,14 @@ A masked node hides its IP address from every peer.
   through the proxy.
 - The node MUST NOT run the mainline rendezvous, LAN discovery,
   UPnP, AutoNAT, DCUtR, or a relay server. It runs the content
-  network's DHT as a client only.
+  network's DHT as a client only, and MUST discard private and
+  LAN addresses the DHT returns.
+- The node MAY run a circuit relay client without reservations, so
+  that it can reach a `relayed` node (§5.6.3); its connection to
+  the relay goes through the proxy like any other.
+- The node MUST pass a hostname address to the proxy unresolved,
+  so that name resolution happens through Tor and never on the
+  local resolver.
 - Because the mainline DHT is UDP and Tor carries only TCP, a
   masked node bootstraps by dialing a configured `public` node
   through Tor and finds further peers through the content
@@ -510,10 +517,13 @@ from its network address.
   `<relay-multiaddr>/p2p/<relay-peer-id>/p2p-circuit` for its
   configured relay and MUST advertise only that circuit address.
 - The node MUST refuse every outbound dial except to the named
-  relay and to LAN addresses. Peers reach it through the relay.
-- The node MUST NOT run the mainline rendezvous, UPnP, AutoNAT or
-  DCUtR. It runs the content network's DHT as a client only and MAY
-  run LAN discovery.
+  relay and to circuit addresses through it, LAN addresses
+  included, so that no remote peer can steer it into dialing its
+  own network. Peers reach it through the relay.
+- The node MUST NOT run the mainline rendezvous, LAN discovery,
+  UPnP, AutoNAT or DCUtR. It runs the content network's DHT in
+  server mode, so that it enters peers' routing tables and is
+  findable by peer id at its circuit address.
 - A relay serving a relayed node SHOULD reserve only for the peer
   ids it is configured to serve and MAY lift the default
   per-connection limits for them, so that content flows over the
