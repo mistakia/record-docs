@@ -110,6 +110,10 @@ legacy record-app are not part of this specification.
   user-initiated restart. The application MUST NOT silently restart
   mid-session — playback continuity takes precedence over update urgency.
 - The update channel (stable, beta) is user-configurable.
+- The update check reaches the update server directly, not through the
+  node's network mode (§8.3.5): a masked node (§5.6.2) hides the node's
+  peer-to-peer traffic only. The application MUST say so beside the
+  network privacy setting.
 - The update server, signing keys, and delta-update format are implementation
   details.
 
@@ -127,6 +131,13 @@ The application bundles an executable that exposes the node HTTP/WS API.
 - The application MUST treat the bundled binary as an opaque executable:
   it spawns, monitors, and tears down the process via OS primitives and
   communicates with it only via the HTTP/WS API.
+- The application also bundles a Tor client executable per supported
+  architecture, used only for the masked network privacy setting (§8.3.5).
+  The application starts it as a child process with a data directory
+  under its own application-private storage, binds its SOCKS5 port to
+  loopback, passes that address to the node, and tears it down with the
+  node. The application starts no Tor process while the setting is
+  Public.
 
 ### 8.2.7 Application identity and versioning
 
@@ -183,6 +194,16 @@ The connection settings surface exposes:
   `http://` or `https://` URL per §8.7.2) and a bearer-token input.
 - For bundled: read-only display of the bundled node's port, data-directory
   path, and pinned version.
+- For bundled: a network privacy selector with two options, **Public** and
+  **Masked through Tor**, defaulting to Public. Public runs the node in
+  `public` mode (§5.6.1). Masked starts the bundled Tor client (§8.2.6)
+  and runs the node in `masked` mode (§5.6.2) with Tor's SOCKS5 address.
+  The selector states what each option exposes: Public makes the
+  machine's IP address visible to peers and, once reachable, to the
+  mainline rendezvous; Masked hides it from peers but leaves the machine
+  unreachable, so it serves content only to peers it connected to, and
+  leaves the update check direct (§8.2.5). Changing it restarts the
+  bundled node. The setting is application-private state (§8.8.4).
 - A "test connection" action that issues `GET /settings` against the
   configured target and reports success or specific failure (network error,
   TLS error, auth failure, HTTP status).
@@ -235,6 +256,12 @@ default and widens it only through a configured `host`, so the application
 leaves `host` unset or sets it to `127.0.0.1`. The rule covers the API
 listener only. The node's peer-to-peer (libp2p) listener is not loopback:
 the bundled node must reach peers to replicate (§5).
+
+**Network mode.** The application MUST pass the node the network mode the
+privacy setting selects (§8.3.5) and, for `masked`, the bundled Tor
+client's SOCKS5 address. It MUST NOT start the node in `masked` mode
+before that address accepts connections, so the node never dials
+directly.
 
 Additional arguments (logging level, advanced tuning) are
 implementation-defined and MUST NOT contradict the above.

@@ -21,15 +21,46 @@ message formats are MUST-level requirements.
 An implementation SHOULD support at least two of the following
 mechanisms and MUST be able to bootstrap from any one in isolation:
 
-- **Shared bootstrap service**: a well-known directory that
-  returns candidate peer addresses for the Record network.
+- **Shared bootstrap service**: a well-known rendezvous that
+  returns candidate peer addresses for the Record network
+  (§5.2.1).
 - **Local-network discovery**: mDNS or equivalent for peers on
   the same LAN.
 - **Content-network native discovery**: the underlying
   content-addressed network's own peer discovery.
 
 Every implementation MUST support content-network native discovery.
-The other mechanisms are acceleration layers.
+The other mechanisms are acceleration layers. A node in `masked`
+or `relayed` mode (§5.6) runs only the mechanisms its mode allows.
+
+### 5.2.1 Mainline rendezvous
+
+The shared bootstrap service is the BitTorrent mainline DHT
+(BEP 5), used as a rendezvous rather than as a server the project
+runs.
+
+- **Info hash.** The rendezvous key is the 20-byte SHA-1 of the
+  17 ASCII bytes `record-network-v1`:
+  `2cad0137affa3f21818be869ca2728ab2f8d76fe`.
+- **Lookup.** A node SHOULD run `get_peers` on the info hash at
+  start and periodically after (recommended: every 15 minutes),
+  and dial each returned `<ip>:<port>` directly as
+  `/ip4/<ip>/tcp/<port>` over the §5.5 profile. A returned address
+  is an untrusted hint: a dial that fails the pre-shared key is
+  dropped.
+- **Announce.** A node MUST announce (`announce_peer`) only a TCP
+  port it has confirmed is reachable from outside its network:
+  one AutoNAT has confirmed or one a UPnP mapping has opened
+  (§5.5.2). A node with no confirmed port MUST NOT announce and
+  only looks up. The mainline DHT stores the UDP source address
+  of the announce, so announcing an unmapped internal port would
+  publish an undialable address. A node SHOULD re-announce before
+  the DHT's entry lifetime lapses (recommended: every 15 minutes).
+- **Exposure.** A node that announces makes its public IP address
+  and port visible to anyone who looks up the info hash. Mainline
+  DHT queries are themselves visible to the DHT nodes they reach.
+  Implementations MUST NOT forge node ids or otherwise depart from
+  BEP 5 and BEP 42 to place themselves near the info hash.
 
 ## 5.3 Library announcement (RECORD topic)
 
@@ -402,3 +433,96 @@ Peers running on the libp2p stack MUST be configured as follows:
   accept any valid CID string there. Entries written before v1.0.3 may carry a
   CIDv0 (`Qm...`) or a CIDv1 from another profile; they remain
   readable but do not dedupe against profile-conformant CIDs.
+
+### 5.5.2 Transports and NAT traversal
+
+- **Transport.** TCP. Every connection MUST pass the §5.5.1
+  pre-shared key connection protector. A transport that skips the
+  protector (QUIC and WebRTC in js-libp2p, for example) MUST NOT be
+  enabled. A connection carried through a circuit relay or a SOCKS5
+  proxy (§5.6) is still TCP underneath and still carries the key.
+- **NAT traversal.** A `public` node (§5.6) SHOULD run this set:
+  - **AutoNAT** to learn whether its listen addresses are dialable
+    from outside.
+  - **UPnP** port mapping on the local gateway, where one answers.
+  - **Circuit relay v2**, as a client to reserve on a reachable
+    peer while it is not itself reachable, and as a server with the
+    default per-connection limits so that peers can coordinate a
+    hole punch through it.
+  - **DCUtR** to upgrade a relayed connection to a direct one by a
+    synchronised TCP simultaneous open.
+- A hole punch that fails, as behind a symmetric or carrier-grade
+  NAT, falls back to other reachable peers holding the content. A
+  `public` node's relay server MUST NOT be relied on to carry
+  content between third parties; its default limits make it a
+  coordination channel only.
+
+## 5.6 Network modes
+
+A node runs in exactly one network mode. The mode names how the
+node can be reached and bounds what it advertises and dials.
+
+| Mode | Reachable by | Advertises | Dials |
+| --- | --- | --- | --- |
+| `public` | anyone | its confirmed public addresses | anyone, directly |
+| `masked` | no one | nothing | outbound only, through Tor |
+| `relayed` | anyone, through one named relay | only its circuit address on that relay | the named relay and LAN addresses only |
+
+### 5.6.1 `public`
+
+The default. The node runs the §5.2 mechanisms including the
+mainline rendezvous, the §5.5.2 NAT traversal set, and the content
+network's DHT as a server.
+
+### 5.6.2 `masked`
+
+A masked node hides its IP address from every peer.
+
+- Every connection MUST be opened outbound through a Tor SOCKS5
+  proxy. The node MUST NOT listen on any address, advertise any
+  address (including LAN addresses), or dial any address except
+  through the proxy.
+- The node MUST NOT run the mainline rendezvous, LAN discovery,
+  UPnP, AutoNAT, DCUtR, or a relay server. It runs the content
+  network's DHT as a client only.
+- Because the mainline DHT is UDP and Tor carries only TCP, a
+  masked node bootstraps by dialing a configured `public` node
+  through Tor and finds further peers through the content
+  network's DHT. An implementation SHOULD ship a default bootstrap
+  address for this purpose.
+- A masked node is outbound-only: two masked nodes never connect
+  to each other, and a masked node serves content only over
+  connections it opened. Listening as a Tor onion service is not
+  defined in this version.
+- A masked node's traffic is still visible to the Tor exit as
+  pre-shared-key-protected TCP to the peer's address. Whatever a
+  library publishes (§5.3) remains public; masking hides the
+  network address only.
+
+### 5.6.3 `relayed`
+
+A relayed node is reachable only through one named circuit relay,
+which lets an operator publish a node without exposing or dialing
+from its network address.
+
+- The node MUST listen only on
+  `<relay-multiaddr>/p2p/<relay-peer-id>/p2p-circuit` for its
+  configured relay and MUST advertise only that circuit address.
+- The node MUST refuse every outbound dial except to the named
+  relay and to LAN addresses. Peers reach it through the relay.
+- The node MUST NOT run the mainline rendezvous, UPnP, AutoNAT or
+  DCUtR. It runs the content network's DHT as a client only and MAY
+  run LAN discovery.
+- A relay serving a relayed node SHOULD reserve only for the peer
+  ids it is configured to serve and MAY lift the default
+  per-connection limits for them, so that content flows over the
+  relayed connection.
+
+### 5.6.4 Agent string
+
+A node SHOULD identify itself to peers (libp2p identify
+`agentVersion`) as `record-node/<major>.<minor> (<mode>)`, for
+example `record-node/1.2 (masked)`, and SHOULD NOT include its
+runtime or operating system. Another implementation substitutes its
+own name. A peer MAY use the mode for aggregate counts; it MUST NOT
+treat the string as authenticated.
