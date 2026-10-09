@@ -800,9 +800,11 @@ makes every node request on the renderer's behalf (§8.10.7).
 ### 8.7.6 Endpoint surface consumed
 
 The application consumes the HTTP/WS API defined in protocol §7
-(`7-http-api.yaml`, v1.3.0). Its multi-library, capability, and replication
+(`7-http-api.yaml`, v1.6.0). Its multi-library, capability, and replication
 endpoints implement §3.5.5–§3.5.11, §4.6, and §4.8. No subset; no additional
-endpoints beyond the spec.
+endpoints beyond the spec. Artwork and avatars are fetched through
+`/images/{cid}`: the main process fetches the bytes and hands the renderer
+data, so the renderer CSP `img-src 'self' data:` holds.
 
 The application MUST gracefully handle endpoints returning 404 (the node may
 be a version that does not implement a newer endpoint) and degrade the

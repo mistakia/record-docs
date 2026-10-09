@@ -1,5 +1,12 @@
 # Record Protocol Specification — Changelog
 
+## v1.2.3 — 2026-10-09
+
+API addition, no protocol or vector change.
+
+- **Chapter 7** is version 1.6.0: `HEAD` and `GET /images/{cid}` serve an artwork or avatar blob of at most 16 MiB that sniffs as `image/*`, and 404 any other blob. `GET /tracks` sorts by `bitrate` and `listen_count`.
+- **Chapter 8.** §8.7.6 fetches artwork and avatars through `/images/{cid}`.
+
 ## v1.2.2 — 2026-10-09
 
 Content-processing clarification and API addition, no protocol or vector change.
