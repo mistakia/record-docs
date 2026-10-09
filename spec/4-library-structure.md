@@ -306,7 +306,10 @@ library's replication policy (§4.6.1) and the identity's pins
 5. For `recordstore` entries, the dag-cbor payload referenced by
    `envelope.content` (§2.1).
 6. For Track entries: the audio blob referenced by `content.hash`
-   and each CID in `content.artwork`.
+   and each CID in `content.artwork`. For the library's current About
+   entry (§2.6): the image blob referenced by `avatar`, so a peer
+   replicating the library still shows its avatar while the owner is
+   offline.
 
 Item 4 and item 5 are distinct content-addressed objects. Item 4 is
 the full signed wrapper; item 5 is the application payload it points
@@ -315,14 +318,14 @@ pin item 5 because `envelope.content` is a string, not an IPLD link.
 
 Pinning MAY be non-recursive for items 1-5 (the dag-cbor objects are
 leaf-level from the pinning perspective) and SHOULD be recursive for
-item 6 (the audio blob is typically chunked into a UnixFS DAG by
-the §5.5.1 importer, so a recursive pin is needed
+item 6 (the audio blob, artwork, and avatar are UnixFS files that
+the §5.5.1 importer may chunk into a DAG, so a recursive pin is needed
 to retain all blocks).
 
 On unlink, the implementation MUST unpin items 1, 2, 3, every entry
 hash the library uniquely held (not shared with another still-linked
-library), and every content CID/audio/artwork that is not referenced by
-another still-linked library. It MUST NOT unpin a blob that a pin
+library), and every content CID, audio blob, artwork, and avatar that is
+not referenced by another still-linked library. It MUST NOT unpin a blob that a pin
 (§4.6.2) still holds.
 
 ### 4.6.1 Replication policy
@@ -348,13 +351,22 @@ log itself (§5.4), are the same in every mode.
   start fetching every linked library's audio. Relinking it records a
   link in the identity library, which defaults to `full`.
 - An own library is always replicated as `full`.
+- The current About entry's `avatar` is kept as artwork is: a `full`
+  or `selective` library MUST fetch and pin it, and an `index_only`
+  library MUST NOT fetch it proactively. A `selective` filter reads
+  a track view, which an About entry does not have, so the filter
+  does not decide the avatar.
 - In `index_only` mode a blob fetched on demand, for example to serve
   playback, MAY be cached without a pin and evicted. The cache MUST
   be bounded; its size is the implementation's choice (§1.7).
 - When a track stops qualifying, because it is tombstoned or
   superseded, no longer matches the filter, or the mode changes, the
   implementation MAY unpin its item 6 objects, unless a pin, an own
-  library, or another library's policy still holds them.
+  library, or another library's policy still holds them. The same
+  holds for an avatar whose About entry is superseded or tombstoned,
+  or whose library moves to `index_only`. Until it is unpinned, a
+  superseded avatar stays pinned with the library, and unlink
+  releases it as above.
 - Pausing replication (§5.4.4) suspends the fetches a policy calls
   for, and resuming restarts them. Pause and resume do not change the
   mode.

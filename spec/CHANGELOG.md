@@ -1,5 +1,9 @@
 # Record Protocol Specification — Changelog
 
+## v1.2.5 — 2026-10-09
+
+Pinning change, no entry, API, or vector change. §4.6 item 6 now also covers the image blob named by the `avatar` of a library's current About entry, and §5.1, §5.4.3, and §5.4.6 name avatars beside artwork, so a peer that replicates a library keeps its avatar the way it keeps track artwork and still shows it while the owner is offline. §4.6.1 applies the replication policy to it as to artwork: `full` and `selective` fetch and pin it, `index_only` does not fetch it, and a `selective` filter, which reads a track view, does not decide it. A superseded avatar MAY be unpinned under the rule that releases a superseded track's artwork, and unlink releases it.
+
 ## v1.2.4 — 2026-10-09
 
 API addition, no protocol or vector change. Chapter 7 is version 1.7.0: `POST /images` stores an uploaded image, so a client can set a library's `avatar` to an image of its own. The node imports and pins the blob as ingest does artwork, and answers 201 with its CID and sniffed type. It refuses a file over 16 MiB with 413 and one that does not sniff as `image/*` with 400, the limits `GET /images/{cid}` serves under.

@@ -5,7 +5,8 @@
 Record peers communicate via three logical channels:
 
 1. **Content-addressed fetch**: on-demand retrieval of CIDs
-   (manifest, AC chain, entries, payloads, audio blobs, artwork).
+   (manifest, AC chain, entries, payloads, audio blobs, artwork,
+   avatars).
    Any content-addressed storage network that supports the
    required CID formats is acceptable.
 2. **Publish-subscribe**: library announcement broadcast (§5.3)
@@ -312,8 +313,8 @@ On successful merge, the peer SHOULD:
 1. Pin each newly-known signed log entry object (non-recursive).
 2. Pin each entry's content CID (non-recursive).
 3. Queue the entry for local indexing.
-4. Queue the audio and artwork fetches the library's replication
-   policy calls for (§4.6.1, §5.4.6).
+4. Queue the audio, artwork, and avatar fetches the library's
+   replication policy calls for (§4.6.1, §5.4.6).
 
 **Merge isolation.** An implementation processing multiple
 concurrent heads messages for the same library MUST ensure that
@@ -364,7 +365,7 @@ cannot currently be fetched from the content network.
 
 ### 5.4.6 Content replication
 
-Audio blobs and artwork travel over the content-addressed fetch
+Audio blobs, artwork, and avatars travel over the content-addressed fetch
 channel (§5.1), not over a library's pubsub topic. A peer fetches
 them when a replication policy (§4.6.1) or a pin (§4.6.2) requires
 it, and on demand in `index_only` mode.
