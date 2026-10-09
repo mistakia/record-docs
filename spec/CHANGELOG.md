@@ -1,5 +1,15 @@
 # Record Protocol Specification — Changelog
 
+## v1.2.0 — 2026-10-09
+
+Minor version: network discovery, reachability and masking. No data-model, entry, or vector change; every v1.1 node interoperates with a v1.2 `public` node.
+
+- **Mainline rendezvous.** §5.2.1 makes the BitTorrent mainline DHT the shared bootstrap service, on the info hash `sha1("record-network-v1")`. A node announces only a TCP port AutoNAT confirmed or UPnP mapped, and otherwise only looks up; found addresses are dialed directly. Announcing makes a node's IP public, and the section says so.
+- **Transports and NAT traversal.** §5.5.2 keeps TCP as the transport and forbids any transport that skips the pre-shared key protector, such as QUIC and WebRTC. A `public` node runs AutoNAT, UPnP, circuit relay v2 and DCUtR, and its relay server keeps the default limits so it coordinates hole punches rather than carrying content.
+- **Network modes.** New §5.6 defines `public`, `masked` and `relayed`. A masked node dials every connection outbound through a Tor SOCKS5 proxy, listens on and advertises nothing, and bootstraps by dialing a public node through Tor; onion-service listening is not defined. A relayed node listens and advertises only a circuit address on one named relay and dials only that relay and LAN addresses. §5.6.4 sets the identify agent string to `record-node/<major>.<minor> (<mode>)`.
+- **Chapter 7** is version 1.4.0: `Settings.network_mode`.
+- **Chapter 8.** §8.3.5 adds a bundled-mode network privacy selector, Public or Masked through Tor. §8.2.6 bundles a Tor client the application runs only while masked. §8.4.2 passes the mode and the SOCKS5 address to the node and holds a masked node until Tor accepts connections. §8.2.5 notes that the update check stays direct.
+
 ## v1.1.4 — 2026-10-04
 
 Client change, no protocol, API, or vector change. §8.2.4 no longer requires a Developer ID signature and notarization, because a Developer ID certificate puts the account holder's legal name into every copy of the app. A release build must still carry a code signature that seals the whole bundle, which an ad-hoc signature meets, and its install instructions must explain the first-launch approval macOS then asks for. §8.2.3 drops "signed and notarized" from the `.dmg`. Update integrity is unchanged: §8.10.10 already verifies every update against a pinned key.
