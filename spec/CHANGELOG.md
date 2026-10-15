@@ -1,5 +1,15 @@
 # Record Protocol Specification — Changelog
 
+## v1.2.6 — 2026-10-15
+
+API addition, no protocol or vector change. Chapter 7 is version 1.8.0, for labelling a large library without one request and one event per label per track:
+
+- `PATCH /tracks/{id}/tags` adds, removes, or sets a track's envelope labels (§2.4.3). A change that leaves the labels equal as a set appends nothing.
+- `POST /tags/batch` applies up to 200 such changes to one target library and answers with a status per item. The node appends them as one batch and sends one `library:index-updated` event for it, with no `track:added` per track.
+- `POST /tracks` takes optional `tags`, so a track joins a library with its labels in one PUT.
+- `GET /tracks` takes `tag_groups`: any label within a group, every group across groups.
+- `GET /tags` takes `prefix`.
+
 ## v1.2.5 — 2026-10-09
 
 Pinning change, no entry, API, or vector change. §4.6 item 6 now also covers the image blob named by the `avatar` of a library's current About entry, and §5.1, §5.4.3, and §5.4.6 name avatars beside artwork, so a peer that replicates a library keeps its avatar the way it keeps track artwork and still shows it while the owner is offline. §4.6.1 applies the replication policy to it as to artwork: `full` and `selective` fetch and pin it, `index_only` does not fetch it, and a `selective` filter, which reads a track view, does not decide it. A superseded avatar MAY be unpinned under the rule that releases a superseded track's artwork, and unlink releases it.
