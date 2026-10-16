@@ -1,0 +1,20 @@
+{
+  "fixture_id": "F1",
+  "generator": "gen-content-cid-vector.mjs",
+  "description": "Content CID (§2.3.1): dag-cbor, sha3-512, CIDv1 dag-cbor codec, base58btc.",
+  "cases": [
+    {
+      "name": "hello-world",
+      "inputs": {
+        "value": {
+          "hello": "world"
+        }
+      },
+      "expected": {
+        "cbor_hex": "a16568656c6c6f65776f726c64",
+        "sha3_512_hex": "bc1222d614fd15c0a1e122f92dcb25a4eecf0207665916e9ab080f8efc09ca621d279ad0c99ac4bee68235ce11cc67b37d5002c814e81e3a6457c8fd208ef21b",
+        "cid": "zBwWX8pQhjGaQLy57vXmwHUBxxMDeft5dzud3gari9HqUpFFzqEqfLLspwfCw7k9YSNz59f5JWJZnqP8eN8SDHwEEwrFk"
+      }
+    }
+  ]
+}

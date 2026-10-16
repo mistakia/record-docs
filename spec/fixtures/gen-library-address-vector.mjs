@@ -19,6 +19,7 @@ import { sha3_512 } from '@noble/hashes/sha3.js'
 import { CID } from 'multiformats/cid'
 import { create as digestCreate } from 'multiformats/hashes/digest'
 import { base58btc } from 'multiformats/bases/base58'
+import { write_vector_file } from './write-vector-file.mjs'
 
 const SHA3_512_CODE = 0x14
 
@@ -85,3 +86,14 @@ for (const [label, ok] of checks) {
 }
 console.log('\nOverall:', all_pass ? 'PASS' : 'FAIL')
 if (!all_pass) process.exit(1)
+
+write_vector_file({
+  generator_url: import.meta.url,
+  fixture_id: 'F8',
+  description: 'Library address derivation (§3.6.1, §3.6.2) from (key, library type, discriminator).',
+  cases: results.map((r) => ({
+    name: `${r.library_type}-${r.discriminator}`,
+    inputs: { public_key_hex: TEST_PUBKEY, library_type: r.library_type, discriminator: r.discriminator },
+    expected: { write_list_cid: r.write_list_cid, wrapper_cid: r.wrapper_cid, manifest_cid: r.manifest_cid, address: r.address }
+  }))
+})

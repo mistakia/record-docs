@@ -21,6 +21,7 @@ import { bytesToHex } from '@noble/hashes/utils.js'
 import { CID } from 'multiformats/cid'
 import { create as digestCreate } from 'multiformats/hashes/digest'
 import { base58btc } from 'multiformats/bases/base58'
+import { write_vector_file } from './write-vector-file.mjs'
 
 const SHA3_512_CODE = 0x14
 
@@ -89,13 +90,14 @@ const aboutPayload = {
 const aboutId = bytesToHex(sha256(new TextEncoder().encode(LIBRARY_ADDRESS)))
 
 const cases = [
-  { type: 'track', id: trackId, payload: trackPayload, extras: { tags: ['downtempo', 'fixture'] } },
-  { type: 'log', id: logId, payload: logPayload, extras: {} },
-  { type: 'about', id: aboutId, payload: aboutPayload, extras: {} }
+  { type: 'track', id: trackId, id_source: FIXED_FP, payload: trackPayload, extras: { tags: ['downtempo', 'fixture'] } },
+  { type: 'log', id: logId, id_source: linkedLibrary, payload: logPayload, extras: {} },
+  { type: 'about', id: aboutId, id_source: LIBRARY_ADDRESS, payload: aboutPayload, extras: {} }
 ]
 
 console.log('=== §2.2 Envelope Vectors ===\n')
 let allPass = true
+const vector_cases = []
 
 for (const c of cases) {
   const { cbor, cid } = contentCID(c.payload)
@@ -125,6 +127,11 @@ for (const c of cases) {
   console.log('  envelope round-trip: ' + (envRt ? 'PASS' : 'FAIL'))
   console.log()
   if (!rt || !envRt) allPass = false
+  vector_cases.push({
+    name: c.type,
+    inputs: { type: c.type, id_source: c.id_source, timestamp: FIXED_TIMESTAMP, payload: c.payload, extras: c.extras },
+    expected: { payload_cbor_hex: bytesToHex(cbor), content_cid: cid, envelope_id: c.id, envelope_cbor_hex: bytesToHex(envCbor) }
+  })
 }
 
 // Manual cross-check against RFC 8949 deterministic encoding rules for log payload:
@@ -145,3 +152,10 @@ if (!canonicalCheck) allPass = false
 
 console.log('\nOverall:', allPass ? 'PASS' : 'FAIL')
 if (!allPass) process.exit(1)
+
+write_vector_file({
+  generator_url: import.meta.url,
+  fixture_id: 'F2',
+  description: 'Envelopes (§2.2): payload content CID and envelope bytes for track, log and about; envelope id is sha256 hex of id_source.',
+  cases: vector_cases
+})

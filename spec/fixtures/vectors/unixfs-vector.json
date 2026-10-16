@@ -1,0 +1,25 @@
+{
+  "fixture_id": "F7 (multi-block step)",
+  "generator": "gen-unixfs-vector.mjs",
+  "description": "unixfs-v1-2025 import (§5.5.1) of a generated multi-block input: 1 MiB chunks, balanced, 1024 children, raw leaves, CIDv1, links-first.",
+  "cases": [
+    {
+      "name": "multi-block",
+      "inputs": {
+        "byte_length": 2097153,
+        "byte_rule": "byte[i] = i mod 251",
+        "byte_modulus": 251,
+        "profile": "unixfs-v1-2025"
+      },
+      "expected": {
+        "root_cid": "zdj7WZqdXsKQ1j19s9xaxhLp5oFvFF51WaWK7BVLgbZvB46n5",
+        "leaf_cids": [
+          "zb2rhdK9tbHzWyDq6gLBHySNdh7GTYReayk8U5R4yGMUfEqJ8",
+          "zb2rheMfFnLfvyVnDvp8EdYUeafbw7nvmrHX4A6eZCaDZYKFB",
+          "zb2rhfxRLyMH7jwY2gPci5XDQNbCa2B45vakhwNWJKRvLAwH2"
+        ],
+        "root_block_hex": "122c0a2401551220631b84027d6b9e52b539c4e8373622d23032dfadc64d60af87339c9037e4f769120018808040122c0a2401551220729b9155f00261a681000ccd0ff20e750ed3d525b5b1e6fc961837a3bb666fd6120018808040122a0a24015512208a5edab282632443219e051e4ade2d1d5bbc671c781051bf1437897cbdfea0f1120018010a110802188180800120808040208080402001"
+      }
+    }
+  ]
+}

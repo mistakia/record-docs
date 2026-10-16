@@ -24,9 +24,26 @@ node gen-library-address-vector.mjs
 node gen-meta-log-vector.mjs
 node gen-capability-vector.mjs
 node gen-fingerprint-vector.mjs
+node gen-unixfs-vector.mjs
 ```
 
 Each script exits non-zero on any verification failure.
+
+## Machine-readable vectors
+
+Seven generators also write their cases to `vectors/<generator-name>.json`, so an implementation in another language reads the same inputs and expected outputs instead of porting them from the spec text. Rerunning a generator rewrites its file byte for byte; a diff means the vector changed.
+
+| File | Generator | Cases |
+| --- | --- | --- |
+| `vectors/signing-vector.json` | F0, F4 | signing, signed entry, child entry |
+| `vectors/content-cid-vector.json` | F1 | `{hello: "world"}` content CID |
+| `vectors/envelope-vector.json` | F2 | track, log and about envelopes |
+| `vectors/ac-chain-vector.json` | F3 | write list, wrapper, manifest and address |
+| `vectors/network-message-vector.json` | F6 | LoadedAboutEntry and heads message JSON |
+| `vectors/library-address-vector.json` | F8 | four (key, type, discriminator) addresses |
+| `vectors/unixfs-vector.json` | F7 multi-block step | 2 MiB plus 1 byte import with its leaf CIDs and root block |
+
+Each file is `{fixture_id, generator, description, cases: [{name, inputs, expected}]}`. Bytes are lowercase hex. Protocol objects are plain JSON: an integer-valued number encodes as a CBOR integer and any other number as a CBOR float, as `@ipld/dag-cbor` does for JavaScript numbers. The spec text stays normative. `gen-unixfs-vector.mjs` repeats F7's multi-block step without ffmpeg or fpcalc, so the UnixFS profile can be checked on any machine; its leaf CIDs and root block are diagnostics that the spec does not print.
 
 ## Fixture index
 
@@ -47,7 +64,7 @@ Each script exits non-zero on any verification failure.
 
 ## Toolchain pinning
 
-F0–F6, F8–F11, and the CID step of F7 are pure JavaScript and pin to exact
+F0–F6, F8–F11, the CID step of F7 and `gen-unixfs-vector.mjs` are pure JavaScript and pin to exact
 dependency versions in `package.json`:
 
 | Dependency             | Pinned version |
