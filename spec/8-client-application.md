@@ -763,6 +763,28 @@ default to a single target when the user has multiple writable libraries.
 
 The application MUST NOT implement any other authentication scheme at v1.
 
+**Token-management surface.** A node that accepts remote-mode clients
+provides an out-of-band surface for its operator to manage tokens. It is
+not part of the HTTP API: a client can neither issue nor revoke tokens, and
+the surface is reachable only by the operator of the node's host (for
+example, a command run as the node's service account).
+
+- **Issue** creates a token with an operator-supplied label and shows it
+  exactly once. The node MUST NOT be able to show it again.
+- **List** shows each token's identifier, label, creation time, and
+  revocation time when revoked, and never the token.
+- **Revoke** takes a token's identifier. A revoked token MUST be refused
+  without a node restart, on REST requests and on open event streams: the
+  node closes a WebSocket that authenticated with it.
+- A token is an opaque string of 1 to 2048 characters from the RFC 7230
+  token charset (`7-http-api.yaml`, `x-websocket-events`), so it can be
+  carried in the `bearer.` subprotocol. It SHOULD carry at least 128 bits
+  of entropy.
+- The node MUST store only a one-way hash of each token, never the token.
+- The node MUST answer 401 only for a missing or invalid token. A node that
+  cannot read its token store answers 503, because a client clears its
+  token on any 401 and a fault on the node must not sign its clients out.
+
 ### 8.7.4 TLS
 
 - Bundled mode: no TLS. Loopback only.
@@ -800,7 +822,7 @@ makes every node request on the renderer's behalf (§8.10.7).
 ### 8.7.6 Endpoint surface consumed
 
 The application consumes the HTTP/WS API defined in protocol §7
-(`7-http-api.yaml`, v1.8.0). Its multi-library, capability, and replication
+(`7-http-api.yaml`, v1.8.1). Its multi-library, capability, and replication
 endpoints implement §3.5.5–§3.5.11, §4.6, and §4.8. No subset; no additional
 endpoints beyond the spec. Artwork and avatars are fetched through
 `/images/{cid}`: the main process fetches the bytes and hands the renderer

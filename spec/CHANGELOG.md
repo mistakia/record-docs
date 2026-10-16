@@ -1,5 +1,13 @@
 # Record Protocol Specification — Changelog
 
+## v1.2.7 — 2026-10-15
+
+Authentication clarification, no protocol, endpoint, or vector change. Chapter 7 is version 1.8.1.
+
+- **Token-management surface.** §8.7.3 defines the out-of-band surface it cites: issue with a label, shown once; list without the token; revoke by identifier, effective without a restart on REST and on open event streams. Tokens are opaque RFC 7230 token strings, stored only as a hash.
+- **401 versus 503.** Only a missing or invalid token yields 401. A node that cannot read its token store answers 503, since a client clears its token on any 401.
+- **Tokenless listeners.** Chapter 7 words the exemption on the trust boundary: a listener MAY skip tokens only when the transport authenticates every client that can reach it (loopback, or an authenticated tunnel such as SSH), and one reachable by unauthenticated clients, such as behind a reverse proxy, MUST require them. One node MAY serve both.
+
 ## v1.2.6 — 2026-10-15
 
 API addition, no protocol or vector change. Chapter 7 is version 1.8.0, for labelling a large library without one request and one event per label per track:
