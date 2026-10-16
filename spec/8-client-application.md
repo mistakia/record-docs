@@ -45,8 +45,8 @@ this chapter governs client behavior against a node.
 1. **Not a node.** The application is not a node implementation; it performs
    no protocol-level entry signing, replication, or peer participation. Where
    the application bundles a node, that node is an independent process.
-2. **Not a mobile client.** Native mobile clients (iOS, Android), if produced,
-   are separate applications conforming to sibling chapters.
+2. **Not a mobile client.** Native mobile clients are separate applications
+   conforming to sibling chapters: the iOS application is §10.
 3. **Not a multi-user product.** The application is single-user per
    installation. Multiple users on one machine run separate installations with
    separate node data directories.
@@ -77,8 +77,8 @@ sibling targets added by spec amendment.
 
 ### 8.2.2 Mobile
 
-Native mobile applications (iOS, Android) are out of scope for this chapter.
-React Native, nodejs-mobile, and Android build artifacts present in the
+Native mobile applications are out of scope for this chapter. The iOS
+application is specified in §10. React Native, nodejs-mobile, and Android build artifacts present in the
 legacy record-app are not part of this specification.
 
 ### 8.2.3 Distribution

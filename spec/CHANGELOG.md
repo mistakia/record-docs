@@ -1,5 +1,9 @@
 # Record Protocol Specification — Changelog
 
+## v1.2.9 — 2026-10-16
+
+New client chapter, no protocol, API, or vector change. §10 specifies the iOS application by reference to §8's remote mode, and records where it departs from §8: no hibernation snapshot, listens at least once and dated by the node, and plain HTTP only to a local-network node. It also covers the touch and remote-command model, streaming playback with unplayable formats skipped, and background behaviour. Embedded mode and the phone's device key are left to a later revision. §8.1.2 and §8.2.2 point at §10.
+
 ## v1.2.8 — 2026-10-15
 
 Fixture addition, no protocol, API, or vector change. The F0–F4, F6 and F8 generators also write their cases to `spec/fixtures/vectors/*.json`, and `gen-unixfs-vector.mjs` emits F7's multi-block UnixFS vector without the media toolchain, so implementations in other languages consume the vectors without porting them from the spec text.

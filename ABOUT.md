@@ -52,6 +52,7 @@ This repo is the **single source of truth for Record protocol semantics**. The o
 - `spec/7-http-api.yaml` — HTTP API (OpenAPI)
 - `spec/8-client-application.md` — desktop application client
 - `spec/9-chrome-extension.md` — chrome extension client
+- `spec/10-ios-client.md` — iOS application client
 
 **Governing guidelines**:
 
