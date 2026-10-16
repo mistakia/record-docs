@@ -78,8 +78,9 @@ sibling targets added by spec amendment.
 ### 8.2.2 Mobile
 
 Native mobile applications are out of scope for this chapter. The iOS
-application is specified in §10. React Native, nodejs-mobile, and Android build artifacts present in the
-legacy record-app are not part of this specification.
+application is specified in §10. React Native, nodejs-mobile, and Android
+build artifacts present in the legacy record-app are not part of this
+specification.
 
 ### 8.2.3 Distribution
 
