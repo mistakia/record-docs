@@ -1,7 +1,7 @@
 {
   "fixture_id": "F7 (multi-block step)",
   "generator": "gen-unixfs-vector.mjs",
-  "description": "unixfs-v1-2025 import (§5.5.1) of a generated multi-block input: 1 MiB chunks, balanced, 1024 children, raw leaves, CIDv1, links-first.",
+  "description": "unixfs-v1-2025 import (§5.5.1) of a generated multi-block input: 1 MiB chunks, balanced layout, 1024 children per node, raw leaves, CIDv1.",
   "cases": [
     {
       "name": "multi-block",

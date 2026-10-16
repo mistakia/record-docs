@@ -39,6 +39,7 @@ import { fileURLToPath } from 'node:url'
 import { createHash } from 'node:crypto'
 import { importer } from 'ipfs-unixfs-importer'
 import { base58btc } from 'multiformats/bases/base58'
+import { EXPECTED_SYNTH_CID, IMPORT_PROFILE, SYNTH_BYTES, synth_bytes } from './multi-block-input.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const AUDIO_PATH = join(HERE, 'audio', 'chirp-10s.flac')
@@ -149,18 +150,7 @@ function tagStrip(srcPath) {
   return bytes
 }
 
-// §5.5.1: pass the profile and nothing it sets. In this importer an
-// explicit option (cidVersion, rawLeaves, chunker, layout, ...) wins
-// over the profile.
-const IMPORT_PROFILE = { profile: 'unixfs-v1-2025' }
 
-const SYNTH_BYTES = 2 * 1024 * 1024 + 1
-
-function synthBytes(n) {
-  const out = new Uint8Array(n)
-  for (let i = 0; i < n; i++) out[i] = i % 251
-  return out
-}
 
 // Blocks are discarded; only the root CID matters.
 const discardBlockstore = { put: async (cid) => cid }
@@ -227,7 +217,7 @@ const trackId = sha256Hex(Buffer.from(fingerprint, 'utf8'))
 const strippedBytes = tagStrip(AUDIO_PATH)
 const audioIdentity = sha256Hex(strippedBytes)
 const audioCid = await importCid(strippedBytes, IMPORT_PROFILE)
-const synth = synthBytes(SYNTH_BYTES)
+const synth = synth_bytes()
 const synthCid = await importCid(synth, IMPORT_PROFILE)
 const synthLegacyChunkCid = await importCid(synth, { cidVersion: 1, rawLeaves: true })
 
@@ -236,7 +226,6 @@ const EXPECTED_TRACK_ID = '13f92b74d4d33accd2424b87914fbc6d087b7557fb2166330756b
 const EXPECTED_AUDIO_IDENTITY = '030b44581e3f0bc77407faaf3958de78a95b257b1475bf0a65dc4a5df45a750a'
 // base58btc is the stored form (§2.4.1).
 const EXPECTED_AUDIO_CID = 'zb2rhWrAP3dch4trZWGArAEEN8mqFPhsQ2Jojbedxdq8MtCgH'
-const EXPECTED_SYNTH_CID = 'zdj7WZqdXsKQ1j19s9xaxhLp5oFvFF51WaWK7BVLgbZvB46n5'
 
 console.log('\n=== §6.1.5 + §6.2.4 + §6.4.1 Audio Pipeline Smoke ===\n')
 console.log('Source: ' + AUDIO_PATH)
