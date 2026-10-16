@@ -17,6 +17,7 @@ import { bytesToHex } from '@noble/hashes/utils.js'
 import { CID } from 'multiformats/cid'
 import * as dagCbor from '@ipld/dag-cbor'
 import { create as digestCreate } from 'multiformats/hashes/digest'
+import { write_vector_file } from './write-vector-file.mjs'
 
 const EXPECTED_HEX = 'a16568656c6c6f65776f726c64'
 const EXPECTED_CID =
@@ -61,3 +62,10 @@ if (!match) {
   console.error(`  expected: ${EXPECTED_CID}\n  actual:   ${cidStrB58}`)
   process.exit(1)
 }
+
+write_vector_file({
+  generator_url: import.meta.url,
+  fixture_id: 'F1',
+  description: 'Content CID (§2.3.1): dag-cbor, sha3-512, CIDv1 dag-cbor codec, base58btc.',
+  cases: [{ name: 'hello-world', inputs: { value: payload }, expected: { cbor_hex: cborHex, sha3_512_hex: bytesToHex(digest), cid: cidStrB58 } }]
+})

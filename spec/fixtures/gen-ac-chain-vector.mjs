@@ -22,6 +22,7 @@ import { bytesToHex } from '@noble/hashes/utils.js'
 import { CID } from 'multiformats/cid'
 import { create as digestCreate } from 'multiformats/hashes/digest'
 import { base58btc } from 'multiformats/bases/base58'
+import { write_vector_file } from './write-vector-file.mjs'
 
 const SHA3_512_CODE = 0x14
 
@@ -96,3 +97,19 @@ for (const [label, ok] of checks) {
 }
 console.log('\nOverall:', allPass ? 'PASS' : 'FAIL')
 if (!allPass) process.exit(1)
+
+write_vector_file({
+  generator_url: import.meta.url,
+  fixture_id: 'F3',
+  description: 'Access-control chain (§3.5.1) and library address (§3.6): write list, static wrapper, manifest.',
+  cases: [{
+    name: 'library',
+    inputs: { public_key_hex: TEST_PUBKEY, library_type: manifest.type, name: LIBRARY_NAME },
+    expected: {
+      write_list_cbor_hex: bytesToHex(wlCbor), write_list_cid: wlCid,
+      wrapper_cbor_hex: bytesToHex(wrapCbor), wrapper_cid: wrapCid,
+      manifest_cbor_hex: bytesToHex(manCbor), manifest_cid: manCid,
+      address
+    }
+  }]
+})

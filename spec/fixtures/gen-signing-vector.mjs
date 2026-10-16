@@ -30,6 +30,7 @@ import { bytesToHex } from '@noble/hashes/utils.js'
 import { CID } from 'multiformats/cid'
 import { create as digestCreate } from 'multiformats/hashes/digest'
 import { base58btc } from 'multiformats/bases/base58'
+import { write_vector_file } from './write-vector-file.mjs'
 
 const TEST_PRIV_HEX =
   '0000000000000000000000000000000000000000000000000000000000000001'
@@ -171,3 +172,26 @@ console.log('  ' + childCid)
 const childNextIsString = typeof decode(childSignedCbor).next[0] === 'string'
 console.log('\n  Child next[0] decodes as a string (no tag 42)    : ' + (childNextIsString ? 'PASS' : 'FAIL'))
 if (!childNextIsString) process.exit(1)
+
+write_vector_file({
+  generator_url: import.meta.url,
+  fixture_id: 'F0, F4',
+  description: 'Entry signing (§3.4.5): ECDSA secp256k1 over sha256(dag-cbor(unsigned)) with the signer prehashing again, low-S DER; signed-entry and child-entry hashes (§4.1.1, §4.1.2).',
+  cases: [
+    {
+      name: 'signing',
+      inputs: { private_key_hex: TEST_PRIV_HEX, unsigned_entry: unsigned },
+      expected: { public_key_hex: pubHex, unsigned_cbor_hex: bytesToHex(cbor), sha256_hex: bytesToHex(digest), signature_der_hex: bytesToHex(sigDer) }
+    },
+    {
+      name: 'signed-entry',
+      inputs: { private_key_hex: TEST_PRIV_HEX, unsigned_entry: unsigned },
+      expected: { signed_cbor_hex: bytesToHex(signedCbor), entry_hash: signedCid }
+    },
+    {
+      name: 'child-entry',
+      inputs: { private_key_hex: TEST_PRIV_HEX, unsigned_entry: childUnsigned },
+      expected: { unsigned_cbor_hex: bytesToHex(childCbor), signature_der_hex: bytesToHex(childSigDer), signed_cbor_hex: bytesToHex(childSignedCbor), entry_hash: childCid }
+    }
+  ]
+})

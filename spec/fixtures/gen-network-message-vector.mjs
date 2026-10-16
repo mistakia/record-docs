@@ -21,6 +21,7 @@
 
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex } from '@noble/hashes/utils.js'
+import { write_vector_file } from './write-vector-file.mjs'
 
 const TEST_PUBKEY = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798'
 const LIBRARY_ADDRESS =
@@ -126,3 +127,13 @@ console.log('  ' + (loadedWithin ? 'PASS' : 'FAIL') + `: LoadedAboutEntry <= 256
 const allPass = loadedRt && contentIsDecoded && contentNotCid && contentAddressMatches && headsRt && headsWithin && loadedWithin
 console.log('\nOverall:', allPass ? 'PASS' : 'FAIL')
 if (!allPass) process.exit(1)
+
+write_vector_file({
+  generator_url: import.meta.url,
+  fixture_id: 'F6',
+  description: 'Network messages: LoadedAboutEntry (§5.3.2) and the heads message (§5.4.1), as UTF-8 JSON.',
+  cases: [
+    { name: 'loaded-about-entry', inputs: { message: loadedAboutEntry }, expected: { json: loadedJson, byte_length: Buffer.byteLength(loadedJson) } },
+    { name: 'heads', inputs: { message: headsMessage }, expected: { json: headsJson, byte_length: headsBytes } }
+  ]
+})

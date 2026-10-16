@@ -1,0 +1,61 @@
+{
+  "fixture_id": "F6",
+  "generator": "gen-network-message-vector.mjs",
+  "description": "Network messages: LoadedAboutEntry (§5.3.2) and the heads message (§5.4.1), as UTF-8 JSON.",
+  "cases": [
+    {
+      "name": "loaded-about-entry",
+      "inputs": {
+        "message": {
+          "hash": "zBwWX7sbGgnamYuFHWzehnHysmRkS9rVvdgATL8CPab1ybY1j3xyy9F7Pu9m86AgsyCWfXbBPdxXfhEFzd6fdn14uEVAF",
+          "id": "/record/zBwWX6eaeb5ZhToR5AL62215fMiLTZYAtYpnDcBCebF4PJiLWK2n8MnGCArMMZc3nbLvaCGsg51etXpMrdVH5rgd9DUf8/library",
+          "payload": {
+            "op": "PUT",
+            "key": "4e44c1dc1a37e40a1305a7d88f3b49c0e83969c9d0319da7a64afeb25817a742",
+            "value": {
+              "id": "4e44c1dc1a37e40a1305a7d88f3b49c0e83969c9d0319da7a64afeb25817a742",
+              "timestamp": 1611272666695,
+              "v": 1,
+              "type": "about",
+              "content": {
+                "address": "/record/zBwWX6eaeb5ZhToR5AL62215fMiLTZYAtYpnDcBCebF4PJiLWK2n8MnGCArMMZc3nbLvaCGsg51etXpMrdVH5rgd9DUf8/library",
+                "name": "Spec Fixtures Library",
+                "bio": "Deterministic test vectors for the Record Protocol v1 spec.",
+                "location": "in vitro",
+                "avatar": null
+              }
+            }
+          },
+          "next": [],
+          "refs": [],
+          "v": 2,
+          "clock": {
+            "id": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+            "time": 1
+          },
+          "key": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+          "sig": "3045022100ab7ece3c307e2a1061c83b93d32b62f49abf34d8d24ee167db515e23b33baec80220308677039a50f491c82d2ed95cc4df9f1bac097fa9e7089b488314180a42f6c0"
+        }
+      },
+      "expected": {
+        "json": "{\"hash\":\"zBwWX7sbGgnamYuFHWzehnHysmRkS9rVvdgATL8CPab1ybY1j3xyy9F7Pu9m86AgsyCWfXbBPdxXfhEFzd6fdn14uEVAF\",\"id\":\"/record/zBwWX6eaeb5ZhToR5AL62215fMiLTZYAtYpnDcBCebF4PJiLWK2n8MnGCArMMZc3nbLvaCGsg51etXpMrdVH5rgd9DUf8/library\",\"payload\":{\"op\":\"PUT\",\"key\":\"4e44c1dc1a37e40a1305a7d88f3b49c0e83969c9d0319da7a64afeb25817a742\",\"value\":{\"id\":\"4e44c1dc1a37e40a1305a7d88f3b49c0e83969c9d0319da7a64afeb25817a742\",\"timestamp\":1611272666695,\"v\":1,\"type\":\"about\",\"content\":{\"address\":\"/record/zBwWX6eaeb5ZhToR5AL62215fMiLTZYAtYpnDcBCebF4PJiLWK2n8MnGCArMMZc3nbLvaCGsg51etXpMrdVH5rgd9DUf8/library\",\"name\":\"Spec Fixtures Library\",\"bio\":\"Deterministic test vectors for the Record Protocol v1 spec.\",\"location\":\"in vitro\",\"avatar\":null}}},\"next\":[],\"refs\":[],\"v\":2,\"clock\":{\"id\":\"0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798\",\"time\":1},\"key\":\"0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798\",\"sig\":\"3045022100ab7ece3c307e2a1061c83b93d32b62f49abf34d8d24ee167db515e23b33baec80220308677039a50f491c82d2ed95cc4df9f1bac097fa9e7089b488314180a42f6c0\"}",
+        "byte_length": 1060
+      }
+    },
+    {
+      "name": "heads",
+      "inputs": {
+        "message": {
+          "type": "heads",
+          "heads": [
+            "zBwWX7sbGgnamYuFHWzehnHysmRkS9rVvdgATL8CPab1ybY1j3xyy9F7Pu9m86AgsyCWfXbBPdxXfhEFzd6fdn14uEVAF"
+          ]
+        }
+      },
+      "expected": {
+        "json": "{\"type\":\"heads\",\"heads\":[\"zBwWX7sbGgnamYuFHWzehnHysmRkS9rVvdgATL8CPab1ybY1j3xyy9F7Pu9m86AgsyCWfXbBPdxXfhEFzd6fdn14uEVAF\"]}",
+        "byte_length": 122
+      }
+    }
+  ]
+}
