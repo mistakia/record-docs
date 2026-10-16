@@ -1,5 +1,9 @@
 # Record Protocol Specification — Changelog
 
+## v1.2.8 — 2026-10-15
+
+Fixture addition, no protocol, API, or vector change. The F0–F4, F6 and F8 generators also write their cases to `spec/fixtures/vectors/*.json`, and `gen-unixfs-vector.mjs` emits F7's multi-block UnixFS vector without the media toolchain, so implementations in other languages consume the vectors without porting them from the spec text.
+
 ## v1.2.7 — 2026-10-15
 
 Authentication clarification, no protocol, endpoint, or vector change. Chapter 7 is version 1.8.1.
