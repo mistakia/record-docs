@@ -1,5 +1,13 @@
 # Record Protocol Specification — Changelog
 
+## v1.2.10 — 2026-10-17
+
+Client correction, no protocol, API, or vector change. Chapter 9 is version 1.1, matched to the node it targets:
+
+- **Import result.** `POST /import/url` answers 202 with an `import_id` once the URL resolves, and ingests in the background, so the popup reports that the import started instead of a track title and artist. A resolver refusal or failure is the request's 400 or 502.
+- **Write target.** The options page chooses one of the identity's own recordstore libraries and every import names it, since a node with more than one refuses an import without one.
+- **Origin.** The extension's requests carry its `chrome-extension://` origin, which a node admits only through `cors_origins`, so the extension needs a stable id (the Web Store id, or a manifest `key` when sideloaded).
+
 ## v1.2.9 — 2026-10-16
 
 New client chapter, no protocol, API, or vector change. §10 specifies the iOS application by reference to §8's remote mode, and records where it departs from §8: no hibernation snapshot, listens at least once and dated by the node, and plain HTTP only to a local-network node. It also covers the touch and remote-command model, streaming playback with unplayable formats skipped, and background behaviour. Embedded mode and the phone's device key are left to a later revision. §8.1.2 and §8.2.2 point at §10.

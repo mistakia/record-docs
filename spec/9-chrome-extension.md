@@ -1,7 +1,7 @@
 # Record Protocol Specification — Chrome Extension
 
-**Version**: 1
-**Status**: v1.0.0-draft
+**Version**: 1.1
+**Status**: v1.1.0-draft
 
 This chapter specifies the **chrome extension** — a minimal browser-extension
 client whose single job is one-click ingest of a URL from any web page into
@@ -97,10 +97,13 @@ Triggered by clicking the extension icon:
 3. On click:
    - Button transitions to "Importing…" state.
    - Service worker issues `POST {node_url}/api/import/url` with
-     `{ url: tab_url }` and the configured bearer token (if any).
-   - On success: displays the ingested track title and artist from the
-     response. Optionally auto-closes after a configurable delay.
-   - On resolvable-but-failed: displays "Could not resolve this URL."
+     `{ url: tab_url, library_address }` (the configured write target,
+     §9.5.3) and the configured bearer token (if any).
+   - The node resolves the URL before it answers and ingests in the
+     background, so a 202 carries only an `import_id`. On a 202: displays
+     that the import started. Optionally auto-closes after a delay.
+   - On a URL the resolver refuses (400 `VALIDATION_ERROR`) or fails on
+     (502 `RESOLVER_FAILED`): displays "Could not resolve this URL."
    - On connection error: displays "Record node is unreachable" with a link
      to the options page.
    - On auth error (401): clears the persisted token and displays a
@@ -125,6 +128,10 @@ A single options page exposes:
 
 - Node URL configuration with format validation.
 - Bearer-token configuration.
+- The write target: one of the identity's own, non-retired `recordstore`
+  libraries from `GET /libraries`. A node with more than one refuses an
+  import that names none, so the extension MUST NOT import until one is
+  chosen.
 - "Test Connection" action.
 - Last-known connection status.
 - Documentation of the at-rest-token limitation (§9.6).
@@ -158,7 +165,12 @@ NOT inject scripts into web pages.
 ### 9.7.2 No host permissions
 
 The extension declares no `host_permissions`. Service-worker fetch requests
-to the user-configured node URL are subject to the node's CORS policy.
+to the user-configured node URL are subject to the node's CORS policy, and
+carry `Origin: chrome-extension://<id>`. A node admits the extension only
+when its `cors_origins` lists that origin (§8.7.5), so the extension MUST
+have a stable id: the Chrome Web Store id, or for a sideloaded build a
+`key` in `manifest.json`. The options page shows the origin so the user
+can add it to a node.
 
 ### 9.7.3 Content Security Policy
 
