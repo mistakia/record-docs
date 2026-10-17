@@ -245,7 +245,8 @@ The `track.content.tags` object MUST contain:
   value used for the track id).
 
 The `track.content.tags` object SHOULD contain (when present in the
-source file):
+source file, or for a URL ingest from the resolver record per §6.4.2
+step 5):
 
 - `title`, `artist`, `artists`, `albumartist`, `album`, `remixer`,
   `bpm`, `genre`, `track`, `disk`.
@@ -407,6 +408,18 @@ Ingest from an external source URL proceeds as:
    resolver record attached. Before persistence, implementations
    MUST strip the `url` field from the resolver record so it is
    not written to the log.
+5. A downloaded stream often carries no tags. When the file gives no
+   `title` or no `artist`, the writer SHOULD fill the missing tag
+   from the first resolver record, never overriding a tag the file
+   carries:
+   - with an `alt_title`: `title` is the `alt_title`, and `artist` the
+     record's `artist`;
+   - else with a `fulltitle` of the form `<artist> - <title>` (a
+     hyphen, en dash, or em dash between spaces, split at the first):
+     `artist` and `title` are its two parts, since a record's `artist`
+     is often the uploader's channel;
+   - else `title` is the `fulltitle`, and `artist` the record's
+     `artist`.
 
 ### 6.4.3 CID ingest
 
