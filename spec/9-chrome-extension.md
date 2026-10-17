@@ -1,7 +1,7 @@
 # Record Protocol Specification — Chrome Extension
 
-**Version**: 1.1
-**Status**: v1.1.0-draft
+**Version**: 1.2
+**Status**: v1.2.0-draft
 
 This chapter specifies the **chrome extension** — a minimal browser-extension
 client whose single job is one-click ingest of a URL from any web page into
@@ -119,8 +119,8 @@ title: 'Import to Record', contexts: ['link'] })`.
 - Result surfaced via `chrome.notifications` (success carries track title;
   failure carries error message).
 - The context menu MUST be registered on extension install and on browser
-  startup; the service worker MUST be event-driven (no persistent
-  background state).
+  startup; the service worker MUST be event-driven, holding no
+  background state beyond the imports it follows (§9.5.4).
 
 ### 9.5.3 Options page
 
@@ -135,6 +135,18 @@ A single options page exposes:
 - "Test Connection" action.
 - Last-known connection status.
 - Documentation of the at-rest-token limitation (§9.6).
+
+### 9.5.4 Import result
+
+A 202 means only that ingest started. The service worker MAY follow a
+started import to its end over the node's event stream (`/api/ws`, the
+`import:*` events of chapter 7), opening the socket before the POST so no
+event is missed, and report the result through `chrome.notifications`:
+the imported track's title and artist, or the error. It holds the socket
+only while an import is pending, and MAY send keepalive messages, which
+the node ignores, so Chrome does not stop the worker mid-wait. When the
+socket closes or the wait times out first, the notification says the
+result is unknown.
 
 ## 9.6 Authentication
 

@@ -4,6 +4,8 @@
 
 Content-processing addition, no API or vector change. §6.4.2 step 5: a URL ingest whose downloaded file has no `title` or `artist` fills them from the first resolver record, never overriding the file's own tags. An `alt_title` is the title. Otherwise a `fulltitle` of the form `<artist> - <title>` splits into both, ahead of the record's `artist`, which is often the uploader's channel. Otherwise the `fulltitle` is the title. YouTube audio carries no tags, so URL imports were stored untitled.
 
+Chapter 9 is version 1.2: §9.5.4 lets the extension follow a started import over the event stream and notify its result.
+
 ## v1.2.10 — 2026-10-17
 
 Client correction, no protocol, API, or vector change. Chapter 9 is version 1.1, matched to the node it targets:
