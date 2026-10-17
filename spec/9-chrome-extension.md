@@ -1,7 +1,7 @@
 # Record Protocol Specification — Chrome Extension
 
-**Version**: 1.2
-**Status**: v1.2.0-draft
+**Version**: 1.3
+**Status**: v1.3.0-draft
 
 This chapter specifies the **chrome extension** — a minimal browser-extension
 client whose single job is one-click ingest of a URL from any web page into
@@ -57,8 +57,6 @@ The extension MUST declare exactly these permissions in its manifest:
 - `storage` — persist the configured node URL and bearer token.
 - `contextMenus` — register a "Import to Record" right-click entry on link
   targets.
-- `notifications` — surface success/failure of background ingest actions
-  (context-menu invocations do not open a popup).
 
 The extension MUST NOT declare:
 
@@ -116,11 +114,12 @@ title: 'Import to Record', contexts: ['link'] })`.
 
 - On click: service worker issues the same `POST /api/import/url` against
   the link's target URL.
-- Result surfaced via `chrome.notifications` (success carries track title;
-  failure carries error message).
+- Context-menu invocations open no popup, so the outcome of the request
+  shows on the action icon: a badge for started or refused, with the
+  message in the icon's tooltip. The import's result comes from §9.5.4.
 - The context menu MUST be registered on extension install and on browser
-  startup; the service worker MUST be event-driven, holding no
-  background state beyond the imports it follows (§9.5.4).
+  startup; the service worker MUST be event-driven (no persistent
+  background state).
 
 ### 9.5.3 Options page
 
@@ -138,15 +137,9 @@ A single options page exposes:
 
 ### 9.5.4 Import result
 
-A 202 means only that ingest started. The service worker MAY follow a
-started import to its end over the node's event stream (`/api/ws`, the
-`import:*` events of chapter 7), opening the socket before the POST so no
-event is missed, and report the result through `chrome.notifications`:
-the imported track's title and artist, or the error. It holds the socket
-only while an import is pending, and MAY send keepalive messages, which
-the node ignores, so Chrome does not stop the worker mid-wait. When the
-socket closes or the wait times out first, the notification says the
-result is unknown.
+A 202 means only that ingest started. The extension does not follow the
+import: the desktop application (§8.9.1) reports each finished import as an
+OS notification, whichever client started it.
 
 ## 9.6 Authentication
 

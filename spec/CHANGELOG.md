@@ -1,5 +1,9 @@
 # Record Protocol Specification — Changelog
 
+## v1.2.12 — 2026-10-17
+
+Client change, no protocol, API, or vector change. Import results move to the desktop application: §8.9.1 raises an OS notification for an import that finishes while its window is not in front, whichever client started it. Chapter 9 is version 1.3. The extension no longer follows imports, drops the `notifications` permission, and shows a context-menu request's outcome on its icon badge.
+
 ## v1.2.11 — 2026-10-17
 
 Content-processing addition, no API or vector change. §6.4.2 step 5: a URL ingest whose downloaded file has no `title` or `artist` fills them from the first resolver record, never overriding the file's own tags. An `alt_title` is the title. Otherwise a `fulltitle` of the form `<artist> - <title>` splits into both, ahead of the record's `artist`, which is often the uploader's channel. Otherwise the `fulltitle` is the title. YouTube audio carries no tags, so URL imports were stored untitled.

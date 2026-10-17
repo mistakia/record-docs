@@ -1042,7 +1042,10 @@ implementation.
   and keyboard media keys.
 - **Tagging.** Add and remove tags on tracks in writable libraries.
 - **Ingest.** File import (drag-and-drop and file picker) and URL import,
-  with real-time per-item ingest progress via WebSocket events.
+  with real-time per-item ingest progress via WebSocket events. An import
+  that finishes while the window is not in front, whichever client started
+  it (the chrome extension, §9, included), raises an OS notification naming
+  the track or the failure.
 - **Identity management.** Display pubkey, list of owned libraries, list of
   capabilities held and granted. Export and import private key with §8.5.3
   / §8.5.4 affordances. First-launch backup prompt.
