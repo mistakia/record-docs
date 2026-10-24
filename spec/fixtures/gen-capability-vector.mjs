@@ -5,14 +5,17 @@
  * §3.5.8, §3.5.9, §3.5.10, §4.2 (clock verification).
  *
  * Builds entries in the F3 recordstore library (owner k=1), plus a few in
- * the same owner's listens and identity libraries, as independent branches:
- *   - C: k=2 may append tracks tagged "friends-mix" until an expiry; a write
- *     under C, the owner's revocation of C, a write concurrent with it
+ * the same owner's labels, listens and identity libraries, as independent
+ * branches:
+ *   - C: k=2 may write labels under the prefix "mix/" until an expiry; a
+ *     write under C, the owner's revocation of C, a write concurrent with it
  *     (inert), a write after it (rejected), and one reject per check
  *   - shape and fail-closed cases: a malformed capability, unknown filter,
  *     grantee, and condition types, an owner entry carrying capability_id,
- *     capability_id in listens and identity libraries, a forged clock
- *   - append_tag against a base entry, including a tombstoned one
+ *     capability_id in labels, listens and identity libraries, a forged clock
+ *   - label records (§2.5): labelling an unheld track, an unset, a filter
+ *     checked per pair, malformed records, and the labels library's
+ *     admitted record types
  *   - delegation: grants within and beyond the delegator's actions, a
  *     filtered delegator, a delegated revocation (effective, then a write
  *     after it is inert), an out-of-scope revocation, a write after the
@@ -56,11 +59,12 @@ const K4 = public_key(4)
 const LIBRARY = derive_address(OWNER, 'recordstore', 'library')
 const LISTENS = derive_address(OWNER, 'listens', 'listens')
 const IDENTITY = derive_address(OWNER, 'identity', 'identity')
-const LIBRARY_TYPE = new Map([[LIBRARY, 'recordstore'], [LISTENS, 'listens'], [IDENTITY, 'identity']])
+const LABELS = derive_address(OWNER, 'labels', 'labels')
+const LIBRARY_TYPE = new Map([[LIBRARY, 'recordstore'], [LISTENS, 'listens'], [IDENTITY, 'identity'], [LABELS, 'labels']])
 const WRITE_LIST = [OWNER]
-// §2.2.1 F2 content CIDs.
+// §2.2.1 F2 track content CID.
 const TRACK_CONTENT = 'zBwWX8s8jVcoQvakEsZzXaVeakz5eXiyaqb6jPBdQ4wYyz2LT8iKXYneYTrRWxqtEhcyyv8sMcL5ivsGosuE4saCCimeb'
-const ABOUT_CONTENT = 'zBwWX7ax1zjie7XCTHyf3gyPrF56FJSZQCemrWE4CUHg2RisFqkPhXHa4F2L1YzHRXYyLvMYgHN5LebjqWfseon5TQqCg'
+const ABOUT_KEY = sha256_hex('about')
 const TRACK_A = 'cd24f44d2ee1fb5dba99a6cac74f0398f5a909f3341688d19ea59926c8ef693f'
 const TRACK_B = sha256_hex('track-b')
 const TRACK_T = sha256_hex('track-t')
@@ -86,8 +90,9 @@ const append = (label, { k, next = [], value, op = 'PUT', key, capability_id, li
   return hash
 }
 
-const track = (id, timestamp, tags) => ({ id, timestamp, v: 1, type: 'track', content: TRACK_CONTENT, tags })
-const about = (timestamp) => ({ id: sha256_hex(LIBRARY), timestamp, v: 1, type: 'about', content: ABOUT_CONTENT })
+const track = (id, timestamp) => ({ id, timestamp, v: 1, type: 'track', content: TRACK_CONTENT })
+const about = (timestamp) => ({ type: 'about', v: 1, timestamp, name: 'Library' })
+const labels = (timestamp, set = [], unset = []) => ({ type: 'labels', v: 1, timestamp, set, unset })
 const capability = (fields) => ({ type: 'capability', v: 1, ...fields })
 const revocation = (timestamp, revokes) => ({ type: 'revocation', v: 1, timestamp, revokes })
 const grant = (key, actions, extra = {}) => ({ grantee: { type: 'key', key }, actions, ...extra })
@@ -117,6 +122,9 @@ const filter_shape = (node, depth = 1) => {
       return known(['type', 'field', 'gte', 'gt', 'lte', 'lt'], typeof node.field === 'string' && bounds.length >= 1 &&
         bounds.every((b) => typeof node[b] === 'number'))
     }
+    case 'prefix':
+      return known(['type', 'field', 'prefix'], typeof node.field === 'string' && typeof node.prefix === 'string' &&
+        node.prefix.length > 0 && Buffer.byteLength(node.prefix, 'utf8') <= 128)
     case 'and':
     case 'or': {
       const ok = Array.isArray(node.filters) && node.filters.length >= 1 && node.filters.length <= 64
@@ -160,12 +168,42 @@ const revocation_shape = (r) =>
     ? 'ok'
     : 'malformed'
 
-// A record of a type this version defines must be well formed, with its derived key (§3.5.5).
+// §2.5: NFC, 1 to 128 UTF-8 bytes, no control characters; each pair once.
+const is_track_id = (v) => typeof v === 'string' && /^[0-9a-f]{64}$/.test(v)
+const is_label = (v) => typeof v === 'string' && v.length > 0 && v.normalize('NFC') === v &&
+  Buffer.byteLength(v, 'utf8') <= 128 && !/\p{Cc}/u.test(v)
+const is_pair = (p) => Array.isArray(p) && p.length === 2 && is_track_id(p[0]) && is_label(p[1])
+const labels_shape = (r) => {
+  if (!is_uint(r.timestamp) || r.v !== 1 || extra_fields(r, ['type', 'v', 'timestamp', 'set', 'unset'])) return 'malformed'
+  if (!Array.isArray(r.set) || !Array.isArray(r.unset) || r.set.length + r.unset.length === 0) return 'malformed'
+  const pairs = [...r.set, ...r.unset]
+  if (!pairs.every(is_pair)) return 'malformed'
+  return new Set(pairs.map((p) => p.join('\n'))).size === pairs.length ? 'ok' : 'malformed'
+}
+// §2.6.
+const about_shape = (r) =>
+  r.v === 1 && is_uint(r.timestamp) && typeof r.name === 'string' && r.name.length > 0 &&
+  Buffer.byteLength(r.name, 'utf8') <= 128 && !extra_fields(r, ['type', 'v', 'timestamp', 'name'])
+    ? 'ok'
+    : 'malformed'
+
+// §2.8.1: what a PUT value may be, per library type.
+const ADMITTED = {
+  recordstore: ['track', 'labels', 'about', 'capability', 'revocation'],
+  labels: ['labels', 'about']
+}
+
+// A record of a type this version defines must be well formed, with its derived key (§2.5, §2.6, §3.5.5).
 const record_malformed = (payload) => {
   const { value } = payload
-  if (!is_map(value) || !['capability', 'revocation'].includes(value.type)) return false
-  if (payload.key !== sha256_hex(encode(value))) return true
-  return (value.type === 'capability' ? capability_shape(value) : revocation_shape(value)) === 'malformed'
+  if (!is_map(value)) return false
+  switch (value.type) {
+    case 'capability': return payload.key !== sha256_hex(encode(value)) || capability_shape(value) === 'malformed'
+    case 'revocation': return payload.key !== sha256_hex(encode(value)) || revocation_shape(value) === 'malformed'
+    case 'labels': return payload.key !== sha256_hex(encode(value)) || labels_shape(value) === 'malformed'
+    case 'about': return payload.key !== ABOUT_KEY || about_shape(value) === 'malformed'
+    default: return false
+  }
 }
 
 // --- Evaluation ---
@@ -182,6 +220,11 @@ const evaluate = (node, subject) => {
       const x = resolve(subject, node.field)
       return typeof x === 'number' && (!('gte' in node) || x >= node.gte) && (!('gt' in node) || x > node.gt) &&
         (!('lte' in node) || x <= node.lte) && (!('lt' in node) || x < node.lt)
+    }
+    case 'prefix': {
+      const x = resolve(subject, node.field)
+      const starts = (v) => typeof v === 'string' && v.startsWith(node.prefix)
+      return Array.isArray(x) ? x.some(starts) : starts(x)
     }
     case 'and': return node.filters.every((f) => evaluate(f, subject))
     case 'or': return node.filters.some((f) => evaluate(f, subject))
@@ -220,34 +263,26 @@ const current_first = (a, b) =>
   value_timestamp(entries.get(b)) - value_timestamp(entries.get(a)) ||
   compare_bytes(multihash(a), multihash(b))
 
-// §3.5.6 base entry: §4.4.2 over the causal past, inertness ignored, DEL included.
-const base_entry = (hash, id) => {
-  const candidates = [...causal_past(hash)].filter((h) => {
-    const { payload } = entries.get(h)
-    return payload.key === id && (payload.op === 'DEL' ? payload.value.type === 'track' : payload.value?.type === 'track')
-  })
-  return candidates.sort(current_first)[0]
-}
-
 const covering_actions = (hash) => {
   const { payload } = entries.get(hash)
   const { value } = payload
   if (payload.op !== 'PUT' || !is_map(value)) return []
   switch (value.type) {
-    case 'track': {
-      const actions = ['library.append_track']
-      const base = base_entry(hash, value.id)
-      const prior = base && entries.get(base).payload
-      if (prior && prior.op === 'PUT' && prior.value.content === value.content &&
-        (prior.value.tags ?? []).every((t) => (value.tags ?? []).includes(t))) actions.push('library.append_tag')
-      return actions
-    }
+    case 'track': return ['library.append_track']
+    case 'labels': return ['library.write_label']
     case 'about': return ['library.update_about']
     case 'capability': return ['library.grant_capability']
     default: return []
   }
 }
-const filter_subject = (value) => (value.type === 'track' ? { ...value, tags: value.tags ?? [] } : value)
+// §3.5.6: a label record is one subject per pair; the filter must match them all.
+const filter_subjects = (value) => {
+  if (value.type !== 'labels') return [value]
+  return [
+    ...value.set.map(([track_id, label]) => ({ type: 'label', op: 'set', track_id, label })),
+    ...value.unset.map(([track_id, label]) => ({ type: 'label', op: 'unset', track_id, label }))
+  ]
+}
 
 const chain_of = (hash) => {
   const entry = entries.get(hash)
@@ -264,6 +299,8 @@ const verify = (hash) => {
   if (entry.next.length > 256 || entry.refs.length > 256) return 'fan-out'
   const library_type = LIBRARY_TYPE.get(entry.id)
   if ('capability_id' in payload && library_type !== 'recordstore') return 'capability_id outside recordstore'
+  if (ADMITTED[library_type] && payload.op === 'PUT' && !ADMITTED[library_type].includes(payload.value?.type)) return 'not admitted'
+  if (ADMITTED[library_type] && payload.op === 'DEL' && (library_type !== 'recordstore' || payload.value?.type !== 'track')) return 'not admitted'
   if (record_malformed(payload)) return 'malformed'
   if (is_owner(entry.key)) return null
   if (library_type !== 'recordstore') return 'not in write list'
@@ -290,7 +327,8 @@ const verify = (hash) => {
     const up = i === 0 ? '' : ' up the chain'
     if (capability_shape(cap) === 'unknown' && extra_fields(cap, CAPABILITY_FIELDS)) return 'fails closed'
     if (!cap.actions.some((a) => actions.includes(a))) return 'action not granted' + up
-    if (['track', 'about'].includes(payload.value.type) && !filter_matches(cap.filter, filter_subject(payload.value))) {
+    if (['track', 'labels', 'about'].includes(payload.value.type) &&
+      !filter_subjects(payload.value).every((subject) => filter_matches(cap.filter, subject))) {
       return 'filter fails' + up
     }
     if (!conditions_hold(cap.conditions, payload.value.timestamp)) return 'condition fails' + up
@@ -337,42 +375,41 @@ const effective_revocations = (accepted) => {
 const expected = new Map()
 const expect = (hash, verdict) => expected.set(hash, verdict)
 
+const MIX = { type: 'prefix', field: 'label', prefix: 'mix/' }
+const put_labels = (label, k, next, value, extra = {}) => append(label, { k, next, value, ...extra })
+
 // Capability C and its revocation.
-const C = append('C: k=2 may append tracks tagged friends-mix until an expiry', {
+const C = append('C: k=2 may write mix/ labels until an expiry', {
   k: 1,
   value: capability({
     timestamp: T0,
-    ...grant(K2, ['library.append_track']),
-    filter: { type: 'match', fields: { tags: 'friends-mix' } },
+    ...grant(K2, ['library.write_label']),
+    filter: MIX,
     conditions: [{ type: 'expires_at', at: EXPIRES_AT }]
   })
 })
 expect(C, 'accept')
-const W = append('W: k=2 write under C', { k: 2, next: [C], key: TRACK_A, capability_id: C, value: track(TRACK_A, T0 + 1000, ['friends-mix']) })
+const W = put_labels('W: k=2 labels track A mix/friends under C', 2, [C], labels(T0 + 1000, [[TRACK_A, 'mix/friends']]), { capability_id: C })
 expect(W, 'accept')
 const R = append('R: owner revokes C, having seen W', { k: 1, next: [W], value: revocation(T0 + 2000, C) })
 expect(R, 'accept')
-expect(append('k=2 write under C, concurrent with R', {
-  k: 2, next: [W], key: TRACK_B, capability_id: C, value: track(TRACK_B, T0 + 2500, ['friends-mix'])
-}), 'accept, inert')
-expect(append('k=2 write under C with R in its causal past', {
-  k: 2, next: [R], key: TRACK_B, capability_id: C, value: track(TRACK_B, T0 + 3000, ['friends-mix'])
-}), 'reject: revoked in causal past')
+expect(put_labels('k=2 label write under C, concurrent with R', 2, [W],
+  labels(T0 + 2500, [[TRACK_B, 'mix/friends']]), { capability_id: C }), 'accept, inert')
+expect(put_labels('k=2 label write under C with R in its causal past', 2, [R],
+  labels(T0 + 3000, [[TRACK_B, 'mix/friends']]), { capability_id: C }), 'reject: revoked in causal past')
 
 // One reject per check.
-const under_c = (label, k, value, extra = {}) =>
-  append(label, { k, next: [C], key: value.id, capability_id: C, value, ...extra })
-expect(under_c('write under C signed by k=3', 3, track(TRACK_B, T0 + 1000, ['friends-mix'])), 'reject: grantee mismatch')
-expect(under_c('write under C tagged other', 2, track(TRACK_B, T0 + 1000, ['other'])), 'reject: filter fails')
-expect(under_c('write under C after the expiry', 2, track(TRACK_B, EXPIRES_AT + 1, ['friends-mix'])), 'reject: condition fails')
-expect(under_c('About PUT under C', 2, about(T0 + 1000)), 'reject: action not granted')
-expect(under_c('write under C with a forged clock.time', 2, track(TRACK_B, T0 + 1000, ['friends-mix']), { time: 9 }), 'reject: clock')
-expect(append('write citing C with C outside its causal past', {
-  k: 2, key: TRACK_B, capability_id: C, value: track(TRACK_B, T0 + 1000, ['friends-mix'])
-}), 'reject: capability not in causal past')
-expect(append('write by k=2 with no capability_id', {
-  k: 2, next: [C], key: TRACK_B, value: track(TRACK_B, T0 + 1000, ['friends-mix'])
-}), 'reject: no capability_id')
+const under_c = (label, k, value, extra = {}) => put_labels(label, k, [C], value, { capability_id: C, ...extra })
+expect(under_c('label write under C signed by k=3', 3, labels(T0 + 1000, [[TRACK_B, 'mix/friends']])), 'reject: grantee mismatch')
+expect(under_c('label other under C', 2, labels(T0 + 1000, [[TRACK_B, 'other']])), 'reject: filter fails')
+expect(under_c('mix/a and other in one record under C', 2, labels(T0 + 1000, [[TRACK_B, 'mix/a'], [TRACK_B, 'other']])), 'reject: filter fails')
+expect(under_c('label write under C after the expiry', 2, labels(EXPIRES_AT + 1, [[TRACK_B, 'mix/friends']])), 'reject: condition fails')
+expect(under_c('About PUT under C', 2, about(T0 + 1000), { key: ABOUT_KEY }), 'reject: action not granted')
+expect(under_c('track PUT under C', 2, track(TRACK_B, T0 + 1000), { key: TRACK_B }), 'reject: action not granted')
+expect(under_c('label write under C with a forged clock.time', 2, labels(T0 + 1000, [[TRACK_B, 'mix/friends']]), { time: 9 }), 'reject: clock')
+expect(put_labels('label write citing C with C outside its causal past', 2, [],
+  labels(T0 + 1000, [[TRACK_B, 'mix/friends']]), { capability_id: C }), 'reject: capability not in causal past')
+expect(put_labels('label write by k=2 with no capability_id', 2, [C], labels(T0 + 1000, [[TRACK_B, 'mix/friends']])), 'reject: no capability_id')
 
 // Shapes and fail-closed types.
 expect(append('owner capability with no actions (malformed)', {
@@ -384,25 +421,24 @@ const fail_closed = (label, fields, timestamp) => {
   return cap
 }
 const U = fail_closed('owner capability, filter not over an unknown node', {
-  ...grant(K2, ['library.append_track']), filter: { type: 'not', filter: { type: 'regex', field: 'tags', pattern: '^x' } }
+  ...grant(K2, ['library.write_label']), filter: { type: 'not', filter: { type: 'regex', field: 'label', pattern: '^x' } }
 }, T0 + 10)
-expect(append('write under the unknown-filter capability', {
-  k: 2, next: [U], key: TRACK_B, capability_id: U, value: track(TRACK_B, T0 + 1000, ['friends-mix'])
-}), 'reject: filter fails')
+expect(put_labels('label write under the unknown-filter capability', 2, [U],
+  labels(T0 + 1000, [[TRACK_B, 'mix/friends']]), { capability_id: U }), 'reject: filter fails')
 const UG = fail_closed('owner capability with an unknown grantee type', {
   grantee: { type: 'group', name: 'friends' }, actions: ['library.append_track']
 }, T0 + 11)
 expect(append('write under the unknown-grantee capability', {
-  k: 2, next: [UG], key: TRACK_B, capability_id: UG, value: track(TRACK_B, T0 + 1000, [])
+  k: 2, next: [UG], key: TRACK_B, capability_id: UG, value: track(TRACK_B, T0 + 1000)
 }), 'reject: grantee mismatch')
 const UC = fail_closed('owner capability with an unknown condition type', {
   ...grant(K2, ['library.append_track']), conditions: [{ type: 'before_block', height: 1 }]
 }, T0 + 12)
 expect(append('write under the unknown-condition capability', {
-  k: 2, next: [UC], key: TRACK_B, capability_id: UC, value: track(TRACK_B, T0 + 1000, [])
+  k: 2, next: [UC], key: TRACK_B, capability_id: UC, value: track(TRACK_B, T0 + 1000)
 }), 'reject: condition fails')
 expect(append('owner track PUT carrying capability_id (ignored)', {
-  k: 1, next: [C], key: TRACK_B, capability_id: C, value: track(TRACK_B, T0 + 1000, [])
+  k: 1, next: [C], key: TRACK_B, capability_id: C, value: track(TRACK_B, T0 + 1000)
 }), 'accept')
 expect(append('listen by k=2 carrying capability_id, listens library', {
   k: 2, library: LISTENS, payload: { trackId: TRACK_A, address: LIBRARY, timestamp: T0 }, capability_id: C
@@ -411,22 +447,47 @@ expect(append('owner link PUT carrying capability_id, identity library', {
   k: 1, library: IDENTITY, key: sha256_hex(LIBRARY), capability_id: C,
   value: { type: 'link', v: 1, timestamp: T0, address: LIBRARY }
 }), 'reject: capability_id outside recordstore')
+expect(append('owner label record carrying capability_id, labels library', {
+  k: 1, library: LABELS, capability_id: C, value: labels(T0, [[TRACK_A, 'mix/friends']])
+}), 'reject: capability_id outside recordstore')
 
-// append_tag against a base entry.
-const T = fail_closed('T: owner grants k=2 append_tag', grant(K2, ['library.append_tag']), T0 + 20)
-const TB = append('owner track PUT tagged a (base entry)', { k: 1, next: [T], key: TRACK_T, value: track(TRACK_T, T0 + 21, ['a']) })
-expect(TB, 'accept')
-expect(append('k=2 adds tag b under T', {
-  k: 2, next: [TB], key: TRACK_T, capability_id: T, value: track(TRACK_T, T0 + 22, ['a', 'b'])
+// Label records (§2.5) and the labels library (§4.9).
+const T = fail_closed('T: owner grants k=2 write_label', grant(K2, ['library.write_label']), T0 + 20)
+const TL = put_labels('k=2 labels track T, which no library holds, under T', 2, [T],
+  labels(T0 + 21, [[TRACK_T, 'a'], [TRACK_T, 'b']]), { capability_id: T })
+expect(TL, 'accept')
+expect(put_labels('k=2 unsets a and sets c on track T under T', 2, [TL],
+  labels(T0 + 22, [[TRACK_T, 'c']], [[TRACK_T, 'a']]), { capability_id: T }), 'accept')
+expect(append('owner label record with a mismatched key', {
+  k: 1, key: sha256_hex('labels'), value: labels(T0 + 23, [[TRACK_T, 'a']])
+}), 'reject: malformed')
+const malformed_labels = [
+  ['a pair in both set and unset', labels(T0 + 24, [[TRACK_T, 'a']], [[TRACK_T, 'a']])],
+  ['no pairs', labels(T0 + 25)],
+  ['a label not in NFC', labels(T0 + 26, [[TRACK_T, 'cafe\u0301']])],
+  ['a label with a control character', labels(T0 + 27, [[TRACK_T, 'a\u0007']])],
+  ['a label over 128 bytes', labels(T0 + 28, [[TRACK_T, 'x'.repeat(129)]])],
+  ['an uppercase track id', labels(T0 + 29, [[TRACK_T.toUpperCase(), 'a']])]
+]
+for (const [what, value] of malformed_labels) expect(append(`owner label record with ${what}`, { k: 1, value }), 'reject: malformed')
+expect(append('owner About PUT with a bio (malformed)', {
+  k: 1, key: ABOUT_KEY, value: { ...about(T0 + 30), bio: 'x' }
+}), 'reject: malformed')
+expect(append('owner label record, labels library', {
+  k: 1, library: LABELS, value: labels(T0 + 31, [[TRACK_A, 'lifestream-radio']])
 }), 'accept')
-expect(append('k=2 drops tag a under T', {
-  k: 2, next: [TB], key: TRACK_T, capability_id: T, value: track(TRACK_T, T0 + 23, ['b'])
-}), 'reject: action not granted')
-const TD = append('owner DEL of the base track', { k: 1, next: [TB], op: 'DEL', key: TRACK_T, value: { type: 'track', timestamp: T0 + 24 } })
-expect(TD, 'accept')
-expect(append('k=2 adds a tag after the DEL under T', {
-  k: 2, next: [TD], key: TRACK_T, capability_id: T, value: track(TRACK_T, T0 + 25, ['a', 'b'])
-}), 'reject: action not granted')
+expect(append('owner About PUT, labels library', { k: 1, library: LABELS, key: ABOUT_KEY, value: about(T0 + 32) }), 'accept')
+expect(append('owner track PUT, labels library', { k: 1, library: LABELS, key: TRACK_A, value: track(TRACK_A, T0 + 33) }),
+  'reject: not admitted')
+expect(append('owner DEL, labels library', {
+  k: 1, library: LABELS, op: 'DEL', key: TRACK_A, value: { type: 'track', timestamp: T0 + 34 }
+}), 'reject: not admitted')
+expect(append('owner DEL of an About record', {
+  k: 1, op: 'DEL', key: ABOUT_KEY, value: { type: 'about', timestamp: T0 + 35 }
+}), 'reject: not admitted')
+expect(append('label record by k=2, labels library', {
+  k: 2, library: LABELS, value: labels(T0 + 36, [[TRACK_A, 'a']])
+}), 'reject: not in write list')
 
 // Delegation.
 const D = fail_closed('D: owner grants k=2 grant and append', grant(K2, ['library.grant_capability', 'library.append_track']), T0 + 30)
@@ -435,40 +496,37 @@ const D1 = append('D1: k=2 grants k=3 append_track under D', {
   value: capability({ timestamp: T0 + 31, grantee: { type: 'key_set', keys: [K3] }, actions: ['library.append_track'] })
 })
 expect(D1, 'accept')
-const DW = append('k=3 write under D1', { k: 3, next: [D1], key: TRACK_B, capability_id: D1, value: track(TRACK_B, T0 + 32, []) })
+const DW = append('k=3 write under D1', { k: 3, next: [D1], key: TRACK_B, capability_id: D1, value: track(TRACK_B, T0 + 32) })
 expect(DW, 'accept')
 const D2 = append('D2: k=2 grants k=3 update_about under D', {
   k: 2, next: [D], capability_id: D, value: capability({ timestamp: T0 + 33, ...grant(K3, ['library.update_about']) })
 })
 expect(D2, 'accept')
 expect(append('k=3 About PUT under D2, which D does not cover', {
-  k: 3, next: [D2], key: sha256_hex(LIBRARY), capability_id: D2, value: about(T0 + 34)
+  k: 3, next: [D2], key: ABOUT_KEY, capability_id: D2, value: about(T0 + 34)
 }), 'reject: action not granted up the chain')
 const DR = append('DR: k=2 revokes D1, which it issued', { k: 2, next: [DW], capability_id: D, value: revocation(T0 + 35, D1) })
 expect(DR, 'accept')
 expect(append('k=3 write under D1 with DR in its causal past', {
-  k: 3, next: [DR], key: TRACK_B, capability_id: D1, value: track(TRACK_B, T0 + 36, [])
+  k: 3, next: [DR], key: TRACK_B, capability_id: D1, value: track(TRACK_B, T0 + 36)
 }), 'reject: revoked in causal past')
 expect(append('k=3 write under D1 concurrent with DR', {
-  k: 3, next: [DW], key: TRACK_B, capability_id: D1, value: track(TRACK_B, T0 + 38, [])
+  k: 3, next: [DW], key: TRACK_B, capability_id: D1, value: track(TRACK_B, T0 + 38)
 }), 'accept, inert')
 expect(append('k=3 revokes D2, which it did not issue', {
   k: 3, next: [D1, D2], capability_id: D1, value: revocation(T0 + 37, D2)
 }), 'reject: revocation out of scope')
 
-const F = fail_closed('F: owner grants k=2 grant and append, tagged friends-mix', {
-  ...grant(K2, ['library.grant_capability', 'library.append_track']), filter: { type: 'match', fields: { tags: 'friends-mix' } }
+const F = fail_closed('F: owner grants k=2 grant and write_label, mix/ only', {
+  ...grant(K2, ['library.grant_capability', 'library.write_label']), filter: MIX
 }, T0 + 40)
-const F1 = append('F1: k=2 grants k=3 append_track under the filtered F', {
-  k: 2, next: [F], capability_id: F, value: capability({ timestamp: T0 + 41, ...grant(K3, ['library.append_track']) })
+const F1 = append('F1: k=2 grants k=3 write_label under the filtered F', {
+  k: 2, next: [F], capability_id: F, value: capability({ timestamp: T0 + 41, ...grant(K3, ['library.write_label']) })
 })
 expect(F1, 'accept')
-expect(append('k=3 write tagged friends-mix under F1', {
-  k: 3, next: [F1], key: TRACK_B, capability_id: F1, value: track(TRACK_B, T0 + 42, ['friends-mix'])
-}), 'accept')
-expect(append('k=3 write tagged other under F1', {
-  k: 3, next: [F1], key: TRACK_B, capability_id: F1, value: track(TRACK_B, T0 + 43, ['other'])
-}), 'reject: filter fails up the chain')
+expect(put_labels('k=3 unsets mix/friends under F1', 3, [F1], labels(T0 + 42, [], [[TRACK_B, 'mix/friends']]), { capability_id: F1 }), 'accept')
+expect(put_labels('k=3 labels other under F1', 3, [F1], labels(T0 + 43, [[TRACK_B, 'other']]), { capability_id: F1 }),
+  'reject: filter fails up the chain')
 
 const E = fail_closed('E: owner grants k=2 grant and append', grant(K2, ['library.grant_capability', 'library.append_track']), T0 + 50)
 const E1 = append('E1: k=2 grants k=3 append_track under E', {
@@ -478,7 +536,7 @@ expect(E1, 'accept')
 const RE = append('owner revokes E, the parent of E1', { k: 1, next: [E1], value: revocation(T0 + 52, E) })
 expect(RE, 'accept')
 expect(append('k=3 write under E1 after its parent is revoked', {
-  k: 3, next: [RE], key: TRACK_B, capability_id: E1, value: track(TRACK_B, T0 + 53, [])
+  k: 3, next: [RE], key: TRACK_B, capability_id: E1, value: track(TRACK_B, T0 + 53)
 }), 'reject: revoked in causal past')
 
 let G = fail_closed('G1: owner grants k=2 grant and append', grant(K2, ['library.grant_capability', 'library.append_track']), T0 + 60)
@@ -490,7 +548,7 @@ for (let i = 2; i <= 9; i++) {
   expect(G, 'accept')
 }
 expect(append('k=2 write under G9, a chain of 9', {
-  k: 2, next: [G], key: TRACK_B, capability_id: G, value: track(TRACK_B, T0 + 70, [])
+  k: 2, next: [G], key: TRACK_B, capability_id: G, value: track(TRACK_B, T0 + 70)
 }), 'reject: chain too long')
 
 const S1 = fail_closed('S1: owner grants k=2 grant and append', grant(K2, ['library.grant_capability', 'library.append_track']), T0 + 80)
@@ -501,7 +559,7 @@ expect(S2, 'accept')
 const RS = append('k=2 revokes S2 citing S2 (self-reference)', { k: 2, next: [S2], capability_id: S2, value: revocation(T0 + 82, S2) })
 expect(RS, 'accept, inert')
 expect(append('k=2 write under S2 after the inert self-revocation', {
-  k: 2, next: [RS], key: TRACK_B, capability_id: S2, value: track(TRACK_B, T0 + 83, [])
+  k: 2, next: [RS], key: TRACK_B, capability_id: S2, value: track(TRACK_B, T0 + 83)
 }), 'accept')
 
 // Two interacting delegated revocations. k=2 holds H1 from the owner and
@@ -522,10 +580,10 @@ expect(HE, 'accept')
 const RA = append('RA: k=3 revokes E citing H2 (clock 4)', { k: 3, next: [HE], capability_id: H2, value: revocation(T0 + 93, HE) })
 expect(RA, 'accept')
 const HY = append('Y: k=4 write under E, concurrent with RA', {
-  k: 4, next: [HE], key: TRACK_B, capability_id: HE, value: track(TRACK_B, T0 + 94, [])
+  k: 4, next: [HE], key: TRACK_B, capability_id: HE, value: track(TRACK_B, T0 + 94)
 })
 expect(HY, 'accept, inert')
-const HW = append('k=2 write under H1', { k: 2, next: [HE], key: TRACK_A, capability_id: H1, value: track(TRACK_A, T0 + 95, []) })
+const HW = append('k=2 write under H1', { k: 2, next: [HE], key: TRACK_A, capability_id: H1, value: track(TRACK_A, T0 + 95) })
 expect(HW, 'accept')
 const RB = append('RB: k=2 revokes H2 (clock 5), concurrent with RA', {
   k: 2, next: [HW, HY], capability_id: H1, value: revocation(T0 + 96, H2)
@@ -537,20 +595,20 @@ const SP = fail_closed('SP: owner grants k=2 append_track', grant(K2, ['library.
 const spam = []
 for (let i = 0; i < 257; i++) {
   const id = sha256_hex(`spam-${i}`)
-  spam.push(append(`spam ${i}`, { k: 2, next: [SP], key: id, capability_id: SP, value: track(id, T0 + 101 + i, []) }))
+  spam.push(append(`spam ${i}`, { k: 2, next: [SP], key: id, capability_id: SP, value: track(id, T0 + 101 + i) }))
 }
 for (const h of spam) expect(h, 'accept')
 const by_hash = [...spam].sort()
 const O1 = append('owner append citing 256 of 257 heads', {
-  k: 1, next: by_hash.slice(0, 256), key: sha256_hex('owner-1'), value: track(sha256_hex('owner-1'), T0 + 400, [])
+  k: 1, next: by_hash.slice(0, 256), key: sha256_hex('owner-1'), value: track(sha256_hex('owner-1'), T0 + 400)
 })
 expect(O1, 'accept')
 const O2 = append('owner append citing the last spam head and O1', {
-  k: 1, next: [by_hash[256], O1], key: sha256_hex('owner-2'), value: track(sha256_hex('owner-2'), T0 + 401, [])
+  k: 1, next: [by_hash[256], O1], key: sha256_hex('owner-2'), value: track(sha256_hex('owner-2'), T0 + 401)
 })
 expect(O2, 'accept')
 expect(append('owner append citing all 257 heads', {
-  k: 1, next: by_hash, key: sha256_hex('owner-3'), value: track(sha256_hex('owner-3'), T0 + 402, [])
+  k: 1, next: by_hash, key: sha256_hex('owner-3'), value: track(sha256_hex('owner-3'), T0 + 402)
 }), 'reject: fan-out')
 
 // --- Verdicts ---

@@ -52,8 +52,9 @@ const F3_ADDRESS =
 const cases = [
   { library_type: 'recordstore', discriminator: 'library' },
   { library_type: 'listens', discriminator: 'listens' },
-  { library_type: 'recordstore', discriminator: 'mixes' },
-  { library_type: 'identity', discriminator: 'identity' }
+  { library_type: 'recordstore', discriminator: 'q4ht7nxk2mzv6wrd3pjc5bfgya' },
+  { library_type: 'identity', discriminator: 'identity' },
+  { library_type: 'labels', discriminator: 'labels' }
 ]
 
 console.log('=== §3.6.1 / §3.6.2 Library Address Derivation Vector ===\n')
@@ -67,15 +68,16 @@ for (const r of results) {
   console.log('  address: ' + r.address)
 }
 
-const [library, listens, mixes, identity] = results
+const [library, listens, random, identity, labels] = results
 const checks = [
   ['(K, recordstore, "library") equals the §3.5.1 F3 address', library.address === F3_ADDRESS],
   ['every library of K shares one write-list and wrapper CID', new Set(results.map((r) => r.wrapper_cid)).size === 1],
-  ['a second discriminator gives a different address', mixes.address !== library.address],
+  ['a random §3.6.1 discriminator gives a different address', /^[a-z2-7]{26}$/.test(random.discriminator) && random.address !== library.address],
   ['the library type separates equal discriminators', derive_address({ key: TEST_PUBKEY, library_type: 'listens', discriminator: 'library' }).address !== library.address],
   ['the identity library address ends in /identity', identity.address.endsWith('/identity')],
   ['derivation is deterministic', derive_address({ key: TEST_PUBKEY, ...cases[3] }).address === identity.address],
-  ['listens address is distinct', listens.address !== library.address]
+  ['listens address is distinct', listens.address !== library.address],
+  ['labels address is distinct', new Set([labels, listens, library, identity].map((r) => r.address)).size === 4]
 ]
 
 console.log('\nStructural checks:')

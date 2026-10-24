@@ -304,7 +304,7 @@ cause peers to disagree about which entries are authorised and
 break convergence.
 
 Capabilities (§3.5.5) are entries inside a static-AC library, not a
-new AC type, so this rule is unchanged in v1.1.
+new AC type, so this rule covers them.
 
 ### 3.5.3 Single-writer libraries
 
@@ -326,15 +326,15 @@ implementation MUST:
 2. Verify that `entry.key` appears in the library's AC `write` list,
    or, in a `recordstore` library, that a capability authorises the
    entry (§3.5.9).
-3. From v1.1, verify `clock.time` against `next` (§4.2).
+3. Verify `clock.time` against `next` (§4.2).
 
 Both `entry.key` and every `write`-list element are 66-character
 lowercase compressed-pubkey hex strings (§3.1), so the comparison
 is a plain string equality check.
 
 An entry that fails any check MUST be rejected. An entry signed by
-a `write`-list key passes step 2 by membership alone, as in v1.0;
-chapter 8 calls this the owner shortcut.
+a `write`-list key passes step 2 by membership alone; chapter 8
+calls this the owner shortcut.
 
 ### 3.5.5 Capabilities
 
@@ -347,8 +347,8 @@ of the library holds what it needs to verify the library's entries,
 and the access controller never changes (§3.5.2).
 
 Capabilities exist only in `recordstore` libraries. An entry whose
-operation carries `capability_id` in a `listens` or `identity`
-library MUST be rejected.
+operation carries `capability_id` in a `labels`, `listens` or
+`identity` library MUST be rejected.
 
 **Capability record.** A capability is a PUT operation (§2.8.1) whose
 value is:
@@ -414,37 +414,36 @@ in its operation as `capability_id` (§2.8.1).
 
 ### 3.5.6 Action vocabulary
 
-| Action                     | Authorises                                                         | Filter subject |
-| -------------------------- | ------------------------------------------------------------------ | -------------- |
-| `library.append_track`     | a PUT of a Track envelope (§2.4)                                   | the envelope   |
-| `library.append_tag`       | a PUT of a Track envelope that keeps the `id` and `content` of the base entry and every tag it has | the envelope |
-| `library.update_about`     | a PUT of an About envelope (§2.6)                                  | the envelope   |
-| `library.grant_capability` | a PUT of a capability record (§3.5.5)                              | none           |
-
-**Base entry.** The base entry of a `library.append_tag` PUT is,
-among the entries for its `id` in the PUT's **causal past** (the
-entries reachable from it through `next`, transitively), the one the
-§4.4.2 ordering puts first, with inertness (§3.5.10) ignored. If that
-entry is a DEL, or there is none, `library.append_tag` does not
-authorise the PUT. Every replica that holds the PUT holds its causal
-past (§5.4.2 item 5). Ignoring inertness keeps the check a function of
-that past alone, since whether an entry in it is inert can turn on a
-revocation outside it.
+| Action                     | Authorises                                  | Filter subject |
+| -------------------------- | ------------------------------------------- | -------------- |
+| `library.append_track`     | a PUT of a Track envelope (§2.4)            | the envelope   |
+| `library.write_label`      | a PUT of a label record (§2.5)              | each pair      |
+| `library.update_about`     | a PUT of an About record (§2.6)             | the record     |
+| `library.grant_capability` | a PUT of a capability record (§3.5.5)       | none           |
 
 The filter subject is the object a capability's FilterSpec is
-evaluated against. An envelope is evaluated as it appears in the
-operation `value`; a Track envelope without `tags` is evaluated as if
-`tags` were `[]`. A filter scopes writes only. It is not applied to a
-capability record, so a delegate with a filtered capability can still
-grant; §3.5.9 step 5 then applies the delegate's filter to every write
-under the capability it grants.
+evaluated against. An envelope or record is evaluated as it appears
+in the operation `value`. A label record is evaluated once per pair,
+against
 
-No action authorises a DEL, a Log PUT, or a listen write. In v1.1 a
+```
+{ type: "label", op: "set" | "unset", track_id: <string>, label: <string> }
+```
+
+and the filter matches the record only when it matches every pair. A
+grantee can therefore both apply and remove the labels its filter
+covers, on any track id. A filter scopes writes only. It is not
+applied to a capability record, so a delegate with a filtered
+capability can still grant; §3.5.9 step 5 then applies the delegate's
+filter to every write under the capability it grants.
+
+No action authorises a DEL or a listen write, and links are recorded
+in the identity library (§4.8.4), where no capability applies. A
 grantee therefore cannot remove a track, record a link, or write a
 listen.
 
-Two verbs from the v1.1 design are reserved, and a verifier treats
-each as an unknown action:
+Two verbs are reserved, and a verifier treats each as an unknown
+action:
 
 - `library.append_listen`. Listens belong to the listener alone
   (§1.2.2), and a `listens` library admits only listen writes
@@ -466,6 +465,7 @@ replication (§4.6.1). Each node carries a `type`:
 { type: "any_of", field: <field_path>, values: <scalar[]> }    // 1 to 256 values
 { type: "range",  field: <field_path>, gte: <number>?, gt: <number>?,
                   lte: <number>?, lt: <number>? }               // at least one bound
+{ type: "prefix", field: <field_path>, prefix: <string> }       // prefix 1 to 128 UTF-8 bytes
 { type: "and",    filters: <FilterSpec[]> }                     // 1 to 64 filters
 { type: "or",     filters: <FilterSpec[]> }                     // 1 to 64 filters
 { type: "not",    filter:  <FilterSpec> }
@@ -483,10 +483,14 @@ numerically.
   is an array sharing an element with `values`.
 - `range` holds when the resolved value is a number that satisfies
   every bound given.
+- `prefix` holds when the resolved value is a string that starts with
+  `prefix`, compared code point by code point, or is an array with
+  such an element. A label capability scoped to `rating/` is
+  `{ type: "prefix", field: "label", prefix: "rating/" }`.
 - `and`, `or`, and `not` are conjunction, disjunction, and negation
   of their sub-filters.
-- A field that resolves to nothing fails `match`, `any_of`, and
-  `range`.
+- A field that resolves to nothing fails `match`, `any_of`, `range`,
+  and `prefix`.
 
 **Fail closed.** A FilterSpec matches no subject when any node in it,
 at any depth, has a `type` the evaluator does not recognise or
@@ -533,8 +537,9 @@ reject it unless all of the following hold:
 4. `C1`'s chain holds at most 8 capabilities.
 5. Every capability in the chain grants an action that authorises the
    operation (§3.5.6), and has conditions that hold for it. For a
-   Track or About PUT, every capability's filter also matches the
-   filter subject. A revocation record is instead checked by §3.5.10.
+   Track, label, or About PUT, every capability's filter also matches
+   the filter subject. A revocation record is instead checked by
+   §3.5.10.
 6. No revocation naming a capability in the chain is effective when
    the §3.5.10 effective set is computed over the entry's causal past
    alone.
@@ -645,34 +650,37 @@ builds entries in the §3.5.1 library, owned by the §3.4.5 test key
 (`k = 1`), with test keys `k = 2` and `k = 3` as grantees, and checks
 each verdict with a reference verifier.
 
-Capability `C` lets `k = 2` append Track envelopes tagged
-`friends-mix` until an expiry. Its capability id, a write under it,
-and the owner's revocation of it, which has seen that write, are:
+Capability `C` lets `k = 2` write labels under the prefix `mix/`
+until an expiry. Its capability id, a label write under it, and the
+owner's revocation of it, which has seen that write, are:
 
 ```
-C (capability id): zBwWX61Hk9TaWwav3Kd5fTzdx4TEyJTU4NzSjhqDqDjyz9UoQPm7poFUmfJMQxUQU6VCbbF53C9MJbQW8HZGdwiNSb1Y1
-W (write under C): zBwWX9GLKF4xVufTPhStjkvwmB1NV2imR8QiGJD755BqTdsPc51ur6hEyS3qBoTwj9mcofwTYhPwvcSog53hmjp2f2NL8
-R (revokes C):     zBwWX7UthQBfd1XSMNssAhMwaKo38puex8DcjceV4cV3Gn59nkJYyvoDivq62GeFaEeskziMh6wb5EwBuLnUcn5DUsSwx
+C (capability id): zBwWX9ifGJ2hJUEXcWfBa8XPPXJeTVmueycsBVhJgF1LcXtKDhTDfXfGZJ6ThHMLSY55bdcN4kayr367jCXkmTj1X8kXo
+W (write under C): zBwWX9PQytHs1BvwyY41t41aqM2eG5qDyHJBcF4whar1Txj1iH2VpRDoPiuVDhpg18JTpahPFkhtJ6BCjfm9i8nKtMsXe
+R (revokes C):     zBwWX5Pjot9No4iFvojbv2EpRP4up8DzUgpwuH8TmiKrEpGBgxJxZ7CvbTBt7cmfN1DH9pZQE3Bm7NCKTToPMoT91Frd6
 ```
 
-The script checks 327 verdicts, 257 of them the fan-out spam below. They cover:
+The script checks 341 verdicts, 257 of them the fan-out spam below. They cover:
 
 | Case | Verdict |
 | ---- | ------- |
 | `W`, in `R`'s causal past | accept |
 | a write under `C` concurrent with `R` | accept, then inert |
 | a write under `C` with `R` in its causal past | reject: step 6 |
-| under `C`: signed by `k = 3`, tagged `other`, after the expiry, an About PUT | reject: steps 3, 5 |
+| under `C`: signed by `k = 3`, labelled `other`, one record mixing `mix/a` and `other`, after the expiry, an About PUT, a Track PUT | reject: steps 3, 5 |
 | citing `C` from outside its causal past; no `capability_id` | reject: steps 2, 1 |
 | a forged `clock.time` | reject: §4.2 |
 | a capability with no actions | reject: malformed |
 | under capabilities with an unknown filter node (inside `not`), grantee type, or condition type | capability accepted; write rejected |
 | an owner Track PUT carrying `capability_id` | accept; field ignored |
-| `capability_id` in a listens library and in an identity library | reject |
-| under `library.append_tag`: adding a tag; dropping one; after the base entry's DEL | accept; reject; reject |
+| `capability_id` in a labels, a listens and an identity library | reject |
+| under `library.write_label`: labelling a track no library holds; unsetting one label and setting another | accept; accept |
+| an owner label record with a mismatched key, a pair in both `set` and `unset`, no pairs, a label not in NFC, with a control character, or over 128 bytes, or an uppercase track id; an About record with a `bio` | reject: malformed |
+| in a labels library: an owner label record and About PUT; an owner Track PUT and DEL; a grantee label record | accept; reject: not admitted (§2.8); reject: §3.5.4 |
+| an owner DEL of an About record | reject: §2.8.2 |
 | a delegated grant within the delegator's actions, and a write under it | accept |
 | a write under a delegated grant the delegator's capability does not cover | reject: up the chain |
-| a write under a grant from a filtered delegator, tagged to match and not | accept; reject: up the chain |
+| under a grant from a delegator filtered to `mix/`: an unset of a `mix/` label, and a set of `other` | accept; reject: up the chain |
 | `k = 2` revoking a grant it issued; a write under that grant with the revocation in its past; one concurrent with it | accept, effective; reject: step 6; accept, then inert |
 | `k = 3` revoking a grant it did not issue | reject: out of scope |
 | a write under a delegated grant after the owner revokes its parent | reject: step 6 |
@@ -680,35 +688,6 @@ The script checks 327 verdicts, 257 of them the fan-out spam below. They cover:
 | `k = 2` revoking its own self-issued grant, citing that grant | accept, never effective: self-reference |
 | `k = 3` revoking a grant `E` it issued under `H2`, concurrent with, and at a lower clock than, `k = 2` revoking `H2` | both effective; a write under `E` in the second's past but not the first's is inert |
 | a grantee leaving 257 heads; an owner append citing 256; one citing the last and the first; one citing all 257 | accept; accept, one head; reject: fan-out (§4.2) |
-
-
-### 3.5.11 Compatibility with v1.0 peers
-
-Capabilities add entries to a static-AC library. They change neither
-the AC nor any rule for entries signed by a `write`-list key, so every
-v1.0 library and entry stays valid. A v1.0 peer handles the new
-entries as follows:
-
-- It rejects a capability or revocation record signed by the owner,
-  because §2.2 admits only Track, Log, and About envelopes, and it
-  rejects an entry signed by a grantee, because the signer is not in
-  the `write` list (§3.5.4).
-- It never merges a descendant of a rejected entry (§5.4.2 item 5).
-- record-node v1.0, and any traversal that abandons a rejected entry,
-  also never enqueues that entry's `next`. Entries reachable only
-  through it are never fetched.
-
-The owner appends a capability record on top of the heads it
-holds, and later entries descend from it. A v1.0 peer that replicated
-the library before its first capability record keeps that state and
-merges nothing after it. A v1.0 peer that first syncs afterwards
-fetches nothing beneath the record either, and may see an empty
-library.
-
-A library whose owner never issues a capability stays fully readable
-by v1.0 peers. An owner who needs v1.0 peers to follow a library
-SHOULD NOT issue capabilities in it, and can share writing through a
-separate library instead.
 
 ## 3.6 Library manifest and address
 
@@ -726,10 +705,6 @@ library address string is:
 
 Implementations MUST use this exact address form. Addresses MUST
 be treated as opaque strings for transport and comparison.
-
-The `identity` library type (§4.8) is new in v1.1. A v1.0
-implementation never creates one, and refuses to open one at step 1
-of the §3.5.1 resolution procedure.
 
 ### 3.6.1 Library discriminator
 
@@ -750,8 +725,16 @@ address    = "/record/" + cid(manifest) + "/" + discriminator
 as a base58btc string.
 
 An implementation creating a library for identity `K` MUST derive
-its address this way. A new discriminator MUST match §3.7 and MUST
-be 1 to 64 characters long. Two libraries of one identity with the
+its address this way. A discriminator MUST match §3.7 and MUST be 1
+to 64 characters long.
+
+**Choosing one.** The `identity` library's discriminator is always
+`identity` (§3.6.2). A new `listens` or `labels` library takes the
+initial discriminator `listens` or `labels`, or a random one when
+that is already recorded for its type (§4.8.3). A new `recordstore`
+library MUST take 26 characters drawn uniformly at random from the
+lowercase RFC 4648 base32 alphabet (`a`-`z`, `2`-`7`), 130 bits, so
+discriminators carry no meaning and never collide. Two libraries of one identity with the
 same type and discriminator are the same library, so a creator MUST
 NOT reuse a discriminator that the identity library records for that
 type (§4.8.2), whether that library is active or retired. Reusing it
@@ -759,14 +742,9 @@ would name the retired library, which stays retired (§4.8.3), rather
 than create a new one.
 
 The discriminator is visible in the address and is not a display
-name; a library's display name belongs in its About entry (§2.6).
-
-**Compatibility.** A v1.0 library created with a single-key `write`
-list already has this address: it is the derivation for its name.
-record-node, for example, names its two v1.0 libraries `record`
-(type `recordstore`) and `listens` (type `listens`). A v1.0 library
-created another way stays valid and loadable (§3.5.3), and the
-identity library records its address as it is (§4.8.3).
+name. A client never shows it as one: a library's display name is its
+About record (§2.6). A library created before this rule, such as one
+whose discriminator is `record`, keeps its address.
 
 ### 3.6.2 Identity library address
 
@@ -782,20 +760,20 @@ address  = "/record/" + cid(manifest) + "/identity"
 The address depends on `K` alone. A device that imports a key
 therefore computes the identity library address without any other
 input, and from that library learns the identity's own libraries,
-links, and pins. Because a v1.0 implementation cannot create a
-library of type `identity`, no v1.0 library has this address.
+links, pins, and profile.
 
 **Reference vector.** `spec/fixtures/gen-library-address-vector.mjs`
-derives four addresses for the §3.4.5 test key. All four share the
+derives five addresses for the §3.4.5 test key. All five share the
 §3.5.1 write-list and wrapper CIDs, and the first equals the §3.5.1
-address, so the v1.1 derivation leaves the v1.0 address unchanged.
+address. The third uses a discriminator of the §3.6.1 random form.
 
 | Type          | Discriminator | Manifest CID (base58btc CIDv1) |
 | ------------- | ------------- | ------------------------------ |
 | `recordstore` | `library`     | `zBwWX6eaeb5ZhToR5AL62215fMiLTZYAtYpnDcBCebF4PJiLWK2n8MnGCArMMZc3nbLvaCGsg51etXpMrdVH5rgd9DUf8` |
 | `listens`     | `listens`     | `zBwWX67a7mbUHRB8maxG6K3CdGyfRLnTv2bFGhvmmpw1SA4Aqku6qy8y6FUar8S9SXrTrkokZH9jTjtQBDRZ6HpELshLu` |
-| `recordstore` | `mixes`       | `zBwWX7ayGQu2GevKxpfRiHbcuNjtqkbRghTqUtCPRKbeRGLdtphXDbHThj9HcnMwMXQhF9GZY9rhYt7Yaibr4Z5Bsed4o` |
+| `recordstore` | `q4ht7nxk2mzv6wrd3pjc5bfgya` | `zBwWX9z7TWUE6xdpijU6cLpby3exmcRCZVoZPsdoLRaKHjUUhzzrU3b96mRnof7oiUUwsGasZfr5gtJ8fuCdrv4Wk8Dtm` |
 | `identity`    | `identity`    | `zBwWX5yfKGoxN42dyykh9tRxq4CjbydSPBpNkVzLe5bmjCRib33F7AiUsRGchrTCgvjDvRVJsC89Rv7Wfk17n8sqMkEFx` |
+| `labels`      | `labels`      | `zBwWX8NMGhVpD5UkPV6zKreKiHBNEUdK7FfgN3fpYn3aJiKxVFytYouYKFEiLvv3VqZCpTRhxcU7ekjWjJki9tXbfwm8U` |
 
 Each address is `/record/<manifest-cid>/<discriminator>`. The
 identity library address of the test key is:

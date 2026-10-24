@@ -32,17 +32,17 @@
       }
     },
     {
-      "name": "recordstore-mixes",
+      "name": "recordstore-q4ht7nxk2mzv6wrd3pjc5bfgya",
       "inputs": {
         "public_key_hex": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
         "library_type": "recordstore",
-        "discriminator": "mixes"
+        "discriminator": "q4ht7nxk2mzv6wrd3pjc5bfgya"
       },
       "expected": {
         "write_list_cid": "zBwWX55HXWPLKbELsvnimVMZhmtAiiM7vCeyLoyeP8AibJtNQ1XYD6g4rY3QMnGXVD6w5HUDH8n5DWY7KVXkzvFqaVR7K",
         "wrapper_cid": "zBwWX8Yoh5RwS7v61cXCk96SXiE7dexudEawmsr2DFswc14YmqPCfZ7w6Tf818jMAj6nSC1L14FL8dccFw5Cvh6D29RNC",
-        "manifest_cid": "zBwWX7ayGQu2GevKxpfRiHbcuNjtqkbRghTqUtCPRKbeRGLdtphXDbHThj9HcnMwMXQhF9GZY9rhYt7Yaibr4Z5Bsed4o",
-        "address": "/record/zBwWX7ayGQu2GevKxpfRiHbcuNjtqkbRghTqUtCPRKbeRGLdtphXDbHThj9HcnMwMXQhF9GZY9rhYt7Yaibr4Z5Bsed4o/mixes"
+        "manifest_cid": "zBwWX9z7TWUE6xdpijU6cLpby3exmcRCZVoZPsdoLRaKHjUUhzzrU3b96mRnof7oiUUwsGasZfr5gtJ8fuCdrv4Wk8Dtm",
+        "address": "/record/zBwWX9z7TWUE6xdpijU6cLpby3exmcRCZVoZPsdoLRaKHjUUhzzrU3b96mRnof7oiUUwsGasZfr5gtJ8fuCdrv4Wk8Dtm/q4ht7nxk2mzv6wrd3pjc5bfgya"
       }
     },
     {
@@ -57,6 +57,20 @@
         "wrapper_cid": "zBwWX8Yoh5RwS7v61cXCk96SXiE7dexudEawmsr2DFswc14YmqPCfZ7w6Tf818jMAj6nSC1L14FL8dccFw5Cvh6D29RNC",
         "manifest_cid": "zBwWX5yfKGoxN42dyykh9tRxq4CjbydSPBpNkVzLe5bmjCRib33F7AiUsRGchrTCgvjDvRVJsC89Rv7Wfk17n8sqMkEFx",
         "address": "/record/zBwWX5yfKGoxN42dyykh9tRxq4CjbydSPBpNkVzLe5bmjCRib33F7AiUsRGchrTCgvjDvRVJsC89Rv7Wfk17n8sqMkEFx/identity"
+      }
+    },
+    {
+      "name": "labels-labels",
+      "inputs": {
+        "public_key_hex": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+        "library_type": "labels",
+        "discriminator": "labels"
+      },
+      "expected": {
+        "write_list_cid": "zBwWX55HXWPLKbELsvnimVMZhmtAiiM7vCeyLoyeP8AibJtNQ1XYD6g4rY3QMnGXVD6w5HUDH8n5DWY7KVXkzvFqaVR7K",
+        "wrapper_cid": "zBwWX8Yoh5RwS7v61cXCk96SXiE7dexudEawmsr2DFswc14YmqPCfZ7w6Tf818jMAj6nSC1L14FL8dccFw5Cvh6D29RNC",
+        "manifest_cid": "zBwWX8NMGhVpD5UkPV6zKreKiHBNEUdK7FfgN3fpYn3aJiKxVFytYouYKFEiLvv3VqZCpTRhxcU7ekjWjJki9tXbfwm8U",
+        "address": "/record/zBwWX8NMGhVpD5UkPV6zKreKiHBNEUdK7FfgN3fpYn3aJiKxVFytYouYKFEiLvv3VqZCpTRhxcU7ekjWjJki9tXbfwm8U/labels"
       }
     }
   ]
