@@ -1,5 +1,22 @@
 # Record Protocol Specification — Changelog
 
+## v2.0.0 — 2026-10-24
+
+Major version, per task user:task/record/separate-record-labels-from-tracks.md. Labels become records of their own, the person gets a profile, and library names become opaque. v1 peers cannot connect to v2 peers, and every v1.0 and v1.1 compatibility rule is removed.
+
+- **Label records (§2.5).** A label record sets and unsets `(track_id, label)` pairs inline in a signed PUT. Label state resolves per pair under §4.4.2, any recordstore or labels library may label any track id, held or not, and labels outlive a track's removal. Track envelopes carry no extras: envelope `tags` (§2.4.3) and the tags component of the §2.10 duplicate key are removed.
+- **About (§2.6).** An inline record carrying only a library's name, keyed `sha256("about")`. Bio, location and avatar move to the profile.
+- **Profile (§4.8.2).** A `profile` record in the identity library carries name, bio and avatar. Receivers ignore undefined profile fields and treat a later `v` as an unknown record, so the profile can grow without stalling replication. Avatar pinning moves to the profile (§4.6).
+- **Labels library (§4.9).** A `labels` library type, one active per identity, created with it as `listens` is. It holds the person's own labels, takes no capabilities, and is never retired.
+- **Rights (§3.5.6, §3.5.7, §3.5.9).** `library.write_label` authorises label records, with the filter checked per pair, so a grantee can add and remove the labels its filter covers. `library.append_tag` and its base-entry rule are removed. FilterSpec gains `prefix`.
+- **Discriminators (§3.6.1).** A new recordstore takes 26 random base32 characters. `identity` is fixed, and `listens` and `labels` are initial discriminators. Existing addresses are kept.
+- **Log type removed.** The Log payload (§2.5), the `"log"` DEL, and the §4.8.4 derivation of links from Log entries are removed: links live only in the identity library.
+- **Network (§5.2.1, §5.5.1).** A new swarm key and the rendezvous name `record-network-v2` (info hash `4ecac5c6…`). The key file's header names its format, not the protocol, so the key bytes are what change.
+- **Announcement (§5.3.2).** `{ libraries: [{ address, about? }], profiles }` carries signed About and profile entries that a receiver verifies without a fetch, replacing `{ about, logs }` and the LoadedAboutEntry inline transform.
+- **Chapter 7 (2.0.0).** `GET /tracks` and `GET /tags` take `label_libraries` apart from membership, defaulting to every own library plus the libraries in view. `TagCount.managed` marks labels held in a node-managed library. Label writes append one label record, accept unheld track ids, and default to the labels library. A write to an unheld id returns `TrackLabels { track_id, tags }`. New routes: `GET /libraries/{address}/labels`, `GET|PUT /identity/profile`, and `GET /libraries/{address}/profile`. About is name only, `POST /identity/libraries` takes a name and no discriminator, and `profile` joins the meta-log types. New events: `library:labels-changed`, and `label_entry_ids` on `library:entries-inert`.
+- **Clients (chapters 8-10).** Labels default to the labels library, with `just me` and `shared` in a co-managed library. Membership and label scopes are separate. The profile names the person, and a discriminator is never shown as a name. Chapter 8 is version 2, chapter 9 version 1.4, and chapter 10 version 2.
+- **Vectors.** F2 covers the track envelope and the inline About record. F6 is the new announcement. F8 adds the labels library and a random discriminator. F9 appends a profile record and uses a random discriminator. F10 covers label records, `write_label`, `prefix` and the labels library (341 verdicts). New F12 covers label state per pair.
+
 ## v1.2.12 — 2026-10-17
 
 Client change, no protocol, API, or vector change. Import results move to the desktop application: §8.9.1 raises an OS notification for an import that finishes while its window is not in front, whichever client started it. Chapter 9 is version 1.3. The extension no longer follows imports, drops the `notifications` permission, and shows a context-menu request's outcome on its icon badge.
