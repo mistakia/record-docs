@@ -88,11 +88,11 @@ fixture verifies single-machine cross-invocation determinism only;
 cross-machine determinism is a residual known risk documented in
 `spec/fixtures/README.md`.
 
-v1.1 replaced the v1.0 source, a 5-second 440 Hz sine. Its
-fingerprint, `AQAAE0mUaEkSZSoAAAAAAAAA` (track id
+A pure tone is no substitute for the chirp. A 5-second 440 Hz sine
+fingerprints as `AQAAE0mUaEkSZSoAAAAAAAAA` (track id
 `20599ccf9f5efb8cc1d6e2ae464471f6f8fab82066a42579b07024d7673b1005`),
-is one value repeated, so it is degenerate (§6.1.6) and a v1.1 ingest
-would reject it. As a fingerprint-to-id derivation it remains correct.
+one value repeated, so it is degenerate (§6.1.6) and an ingest
+rejects it. As a fingerprint-to-id derivation it remains correct.
 
 ### 6.1.6 Degenerate fingerprints
 
@@ -137,7 +137,7 @@ those strings.
 | Fingerprint                                                    | Values | Distinct | Most common | Degenerate |
 | -------------------------------------------------------------- | ------ | -------- | ----------- | ---------- |
 | silent first 120 s, `AQADtEmUaEkSRZEGAAAA...`, track id `b8702767c27bedd78aad13742796018136471b82d99e931db8304472c3a69304` | 948 | 1 | 948 (1.000) | yes |
-| v1.0 §6.1.5 sine, `AQAAE0mUaEkSZSoAAAAAAAAA`                   | 19     | 1        | 19 (1.000)  | yes        |
+| §6.1.5 sine, `AQAAE0mUaEkSZSoAAAAAAAAA`                        | 19     | 1        | 19 (1.000)  | yes        |
 | §6.1.5 chirp, `AQAAO9HSRskFaTmP8Eez...`                        | 59     | 59       | 1 (0.017)   | no         |
 | a commercial demo track (music)                                | 948    | 786      | 7 (0.007)   | no         |
 | 19 of 20 values equal                                          | 20     | 2        | 19 (0.950)  | yes        |
@@ -318,8 +318,8 @@ The canonical ingest path for a local audio file is:
    MUST reject the ingest if the fingerprinter returns an empty
    string, an error exit, or a file with no decodable audio
    stream. A subsequent `sha256("")` MUST NOT be used as a
-   fall-back track id. From v1.1, implementations MUST also reject
-   the ingest if the fingerprint is degenerate (§6.1.6).
+   fall-back track id. Implementations MUST also reject the ingest
+   if the fingerprint is degenerate (§6.1.6).
 2. Compute `track_id = sha256(fingerprint)`.
 3. If an entry with this id already exists in the target library,
    compare durations. The file's duration is its decoded duration as
@@ -349,7 +349,9 @@ The canonical ingest path for a local audio file is:
    measurement).
 10. Assemble the `track.content` object per §2.4.
 11. Pin `audio_cid` and each `artwork_cids[i]`.
-12. Create a Track envelope per §2.2-2.3.
+12. Create a Track envelope per §2.2-2.3. Labels the caller asks for
+    are a label record (§2.5) appended after the track, never part of
+    the envelope.
 13. Append the Track envelope to the library log via a PUT operation
     (§2.8.1). This step internally:
     a. Writes `track.content` to content-addressed storage as dag-cbor
@@ -365,7 +367,7 @@ The canonical ingest path for a local audio file is:
 a file, 120 seconds under fpcalc's default length (§6.1.2), so a mix
 and its opening track, or a track and its truncated copy, can share
 a fingerprint and an id. The id derivation cannot change without
-invalidating v1.0 ids (§2.10), and a library holds one current entry
+invalidating every existing id (§2.10), and a library holds one current entry
 per id, so a colliding ingest can only replace the existing entry or
 refuse. Replacing would silently swap one recording for another, so
 step 3 refuses and the collision surfaces. Durations within 30
@@ -373,11 +375,11 @@ seconds count as the same recording, which absorbs encoder padding
 and container differences. Steps 1 and 3 change only what a writer
 appends; every existing id and entry stays valid.
 
-**Known limitation.** An entry written before v1.1 may store a
-container-reported duration rather than the decoded one, so the step
-3 check against v1.0 data depends on the original writer's metadata
-library. A v1.0 entry whose stored duration is off by more than 30
-seconds makes a matching ingest look like a collision. The rule is
+**Known limitation.** An older entry may store a container-reported
+duration rather than the decoded one, so the step 3 check against it
+depends on the original writer's metadata library. An entry whose
+stored duration is off by more than 30 seconds makes a matching
+ingest look like a collision. The rule is
 unchanged; such an ingest is refused and reported. A writer corrects
 the stored duration by re-derivation (§6.4.4).
 
@@ -449,9 +451,9 @@ an entry whose writer stored a container's figures.
 3. Compute `duration`, `numberOfSamples`, and `bitrate` per §6.3.2.
 4. If all three equal the stored values, stop. Otherwise write a new
    content object equal to the current one except for those three
-   fields of `content.audio`, and append a PUT of it under the same id
-   with the envelope's labels (§2.4.3) kept, which supersedes the
-   current entry (§4.4.2).
+   fields of `content.audio`, and append a PUT of it under the same id,
+   which supersedes the current entry (§4.4.2). The track's labels
+   are separate records (§2.5) and are untouched.
 
 The fingerprint, the track id, the blob and its size, the tags, the
 artwork, the resolver records, and every other `content.audio` field
@@ -478,9 +480,8 @@ A compliant implementation guarantees:
 - Two audio files with byte-identical content produce the same
   tag-stripped CID after the operations in §6.2, imported with the
   §5.5.1 content import profile.
-- Re-tagging the same track (changing library-scoped labels) produces
-  a new oplog entry with the same content CID — the underlying
-  dag-cbor payload does not change when only envelope `tags` change.
+- Labelling a track appends a label record (§2.5) and never rewrites
+  the track's entry or its content payload.
 
 Implementations SHOULD de-duplicate at three layers:
 

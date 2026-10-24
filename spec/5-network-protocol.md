@@ -41,8 +41,8 @@ The shared bootstrap service is the BitTorrent mainline DHT
 runs.
 
 - **Info hash.** The rendezvous key is the 20-byte SHA-1 of the
-  17 ASCII bytes `record-network-v1`:
-  `2cad0137affa3f21818be869ca2728ab2f8d76fe`.
+  17 ASCII bytes `record-network-v2`:
+  `4ecac5c6ff38bda7e9bf46caa4626e2fe6e24248`.
 - **Lookup.** A node SHOULD run `get_peers` on the info hash at
   start and periodically after (recommended: every 15 minutes),
   and dial each returned `<ip>:<port>` directly as
@@ -82,86 +82,57 @@ silently truncating or hashing the topic name.
 ### 5.3.2 Announcement message format
 
 When a peer joins the topic, any already-present peer SHOULD
-publish an announcement containing its own library About entry
-and About entries for each of its locally-replicated, non-empty
-linked libraries:
+publish an announcement naming its own libraries and its
+locally-replicated, non-empty linked libraries (§4.8.4), with what
+it holds of their names and their owners' profiles:
 
 ```
 {
-  "about": <LoadedAboutEntry>,
-  "logs":  [ <LoadedAboutEntry>, ... ]
+  "libraries": [ { "address": <string>, "about": <SignedEntry>? }, ... ],
+  "profiles":  [ <SignedEntry>, ... ]
 }
 ```
+
+- `libraries` lists every announced library once, own libraries
+  first. `about` is the signed entry carrying the library's current
+  About record (§2.6), omitted when the library has none. An
+  identity library, a `listens` library, and a `labels` library are
+  never announced.
+- `profiles` holds, for each identity owning an announced library
+  through a single-key `write` list, the signed entry carrying that
+  identity's current `profile` record (§4.8.2), when the announcer
+  holds it. Each identity appears at most once.
+- A `SignedEntry` is the §4.1.1 signed entry object, serialised as
+  JSON. Its fields are strings, integers, arrays and maps, so a
+  receiver re-encodes it with dag-cbor to recover the canonical
+  bytes, the entry hash (§4.1.2), and the signed message (§3.4).
 
 The message body MUST be JSON-encoded and published via the
 pubsub layer.
 
-An identity that owns several `recordstore` libraries announces one
-of them as `about` and lists the others in `logs`, with its linked
-libraries (§4.8.4). An identity library has no About entry and MUST
-NOT be announced.
+**Trust.** Both records are inline, so an announcement authenticates
+itself without a fetch. A receiver MUST verify a `SignedEntry`'s
+signature before using it. It MUST check that an `about` entry's `id`
+is the announced `address` and that its signer is in that library's
+`write` list, and that a profile entry's `id` is the identity library
+address (§3.6.2) derived from its own `key`. A profile is the profile
+of a library's owner only when the library's `write` list is that
+single key. An entry that fails a check is ignored; the rest of the
+announcement still applies.
 
-**LoadedAboutEntry shape.** Each `LoadedAboutEntry` is a JSON
-serialisation of a signed log entry (§4.1.1) with one
-transformation: the envelope `content` field, which on the wire
-is a base58btc CID string, is replaced inline by the decoded
-About payload object (§2.6). The shape is:
-
-```
-{
-  hash:     <string>,           // entry.hash, base58btc CID of the signed entry
-  id:       <string>,           // library id
-  payload: {
-    op:    "PUT",
-    key:   <string>,            // envelope.id (sha256 of library address)
-    value: {
-      id:        <string>,
-      timestamp: <uint64>,
-      v:         1,
-      type:      "about",
-      content: {                // inlined payload object from §2.6
-        address:  <string>,
-        name:     <string?>,
-        bio:      <string?>,
-        location: <string?>,
-        avatar:   <string?>
-      }
-    }
-  },
-  next:    <string[]>,
-  refs:    <string[]>,
-  v:       2,
-  clock:   { id: <string>, time: <number> },
-  key:     <string>,
-  sig:     <string>
-}
-```
-
-The inlined `content` field lets a receiving peer display
-library metadata without a secondary content fetch. Because the
-inlined form differs from the on-wire envelope, receivers that
-want to verify the About signature MUST re-fetch the canonical
-signed entry by `hash` before treating it as authenticated. The
-announcement payload is authenticated only to the degree its
-signature is verified against the canonical form.
-
-**Size and trust.** Announcement messages MUST NOT exceed 256
-KiB after JSON encoding. A peer receiving a larger message MUST
-drop it without processing. Senders SHOULD reference artwork and
-avatars by CID rather than embedding binary blobs. Receivers
-MUST treat announcement content as untrusted hints until the
-underlying library's AC chain and entry signatures have been
-verified per §3.
+**Size.** Announcement messages MUST NOT exceed 256 KiB after JSON
+encoding. A peer receiving a larger message MUST drop it without
+processing. A peer with more libraries than fit SHOULD announce its
+own libraries and as many linked libraries as fit. Announcements
+reference avatars by CID, never by embedding a blob.
 
 **Reference vector.** `spec/fixtures/gen-network-message-vector.mjs`
-emits a canonical single-entry LoadedAboutEntry whose
-`payload.value.content` is the decoded About payload object (not the
-CID string the canonical wire form would carry) per the inline
-transform contract above. The generator verifies that the inlined
-`content.address` equals the owning library address (§2.6), that
-JSON `parse(stringify(msg))` deep-equals `msg`, and that the encoded
-message is well within the 256 KiB bound (1060 bytes for the
-single-entry vector).
+signs an About entry into the §3.5.1 library and a profile entry into
+the identity library of the §3.4.5 test key, and builds the
+announcement for that library. The generator verifies both
+signatures and entry hashes from the JSON alone, the trust checks
+above, and that `parse(stringify(msg))` deep-equals `msg`. The
+encoded message is 1468 bytes.
 
 ### 5.3.3 Announcement trigger
 
@@ -193,10 +164,13 @@ not exist.
 On receiving an announcement:
 
 1. Parse the JSON body.
-2. Validate `about.content.address` is a valid library address.
-3. Open a read-only handle to the advertised library (do not
-   start replication yet).
-4. For each entry in `logs`, do the same.
+2. Validate each `address` as a library address, and apply the trust
+   checks of §5.3.2 to each `about` and profile entry.
+3. Open a read-only handle to each advertised library (do not start
+   replication yet).
+4. Keep the verified About names and profiles as the libraries' and
+   owners' current display state, replacing an older one only with a
+   record that sorts after it under §4.4.2.
 5. Record the peer-to-library mapping in an in-memory index.
 
 ## 5.4 Replication protocol
@@ -397,11 +371,13 @@ Peers running on the libp2p stack MUST be configured as follows:
   ```
   /key/swarm/psk/1.0.0/
   /base16/
-  cbad12031badbcad2a3cd5a373633fa725a7874de942d451227a9e909733454a
+  759610a71c3687e6644664f722dbc6d83c6c0651266f4b2f4c91beecbfb61a55
   ```
 
-  Peers with a different PSK cannot exchange blocks with Record
-  peers.
+  The first line names the key-file format, not the protocol
+  version; the 32 key bytes are the network. Peers with a different
+  key cannot exchange blocks with Record peers, so this key and the
+  §5.2.1 info hash change with every major protocol version.
 - **Content import profile**: writers MUST import audio blobs and
   artwork as UnixFS files using the IPIP-499 `unixfs-v1-2025`
   profile (https://specs.ipfs.tech/ipips/ipip-0499/). Its
@@ -432,9 +408,9 @@ Peers running on the libp2p stack MUST be configured as follows:
 
   Writers MUST store each resulting CID in `content.hash` and
   `content.artwork` as a base58btc string (§2.4.1). Readers MUST
-  accept any valid CID string there. Entries written before v1.0.3 may carry a
-  CIDv0 (`Qm...`) or a CIDv1 from another profile; they remain
-  readable but do not dedupe against profile-conformant CIDs.
+  accept any valid CID string there. Older entries may carry a CIDv0
+  (`Qm...`) or a CIDv1 from another profile; they remain readable but
+  do not dedupe against profile-conformant CIDs.
 
 ### 5.5.2 Transports and NAT traversal
 
@@ -534,7 +510,7 @@ from its network address.
 
 A node SHOULD identify itself to peers (libp2p identify
 `agentVersion`) as `record-node/<major>.<minor> (<mode>)`, for
-example `record-node/1.2 (masked)`, and SHOULD NOT include its
+example `record-node/2.0 (masked)`, and SHOULD NOT include its
 runtime or operating system. Another implementation substitutes its
 own name. A peer MAY use the mode for aggregate counts; it MUST NOT
 treat the string as authenticated.

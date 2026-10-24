@@ -5,135 +5,130 @@
  *
  * Two vectors:
  *
- *   1. LoadedAboutEntry (§5.3.2): a JSON serialisation of a signed log
- *      entry with the envelope `content` field replaced inline by the
- *      decoded About payload object (not the CID string).
+ *   1. Announcement (§5.3.2): { libraries, profiles } for the F3 library,
+ *      carrying a signed About entry (§2.6) from that library and a signed
+ *      profile entry (§4.8.2) from the F0 identity's identity library.
+ *      Both are verified from the JSON alone: re-encoding each SignedEntry
+ *      with dag-cbor recovers its entry hash and signed bytes.
  *
  *   2. Heads message (§5.4.1): {type: "heads", heads: [<entry.hash>]}.
  *
- * The LoadedAboutEntry reuses the F0 / F4 pubkey so the writer identity
- * threads through the fixtures. The signed-entry `hash` field carries
- * a placeholder CID (a real entry.hash would derive from re-signing the
- * About-shaped entry; for the §5.3.2 transform contract the load-bearing
- * invariant is the *shape* of the message, not regenerating a fresh
- * signature).
+ * Test-only private key k=1. DO NOT USE for anything real.
  */
 
+import { encode, code as dagCborCode } from '@ipld/dag-cbor'
+import { secp256k1 } from '@noble/curves/secp256k1.js'
 import { sha256 } from '@noble/hashes/sha2.js'
-import { bytesToHex } from '@noble/hashes/utils.js'
+import { sha3_512 } from '@noble/hashes/sha3.js'
+import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
+import { CID } from 'multiformats/cid'
+import { create as digestCreate } from 'multiformats/hashes/digest'
+import { base58btc } from 'multiformats/bases/base58'
 import { write_vector_file } from './write-vector-file.mjs'
 
-const TEST_PUBKEY = '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798'
-const LIBRARY_ADDRESS =
-  '/record/zBwWX6eaeb5ZhToR5AL62215fMiLTZYAtYpnDcBCebF4PJiLWK2n8MnGCArMMZc3nbLvaCGsg51etXpMrdVH5rgd9DUf8/library'
-const ABOUT_ID = bytesToHex(sha256(new TextEncoder().encode(LIBRARY_ADDRESS)))
-const PLACEHOLDER_ENTRY_HASH =
-  'zBwWX7sbGgnamYuFHWzehnHysmRkS9rVvdgATL8CPab1ybY1j3xyy9F7Pu9m86AgsyCWfXbBPdxXfhEFzd6fdn14uEVAF'
-const PLACEHOLDER_SIG =
-  '3045022100ab7ece3c307e2a1061c83b93d32b62f49abf34d8d24ee167db515e23b33baec80220308677039a50f491c82d2ed95cc4df9f1bac097fa9e7089b488314180a42f6c0'
+const SHA3_512_CODE = 0x14
 
-// §2.6 About payload, decoded (NOT a CID).
-const aboutPayloadDecoded = {
-  address: LIBRARY_ADDRESS,
-  name: 'Spec Fixtures Library',
-  bio: 'Deterministic test vectors for the Record Protocol v1 spec.',
-  location: 'in vitro',
-  avatar: null
+const cid = (value) =>
+  CID.createV1(dagCborCode, digestCreate(SHA3_512_CODE, sha3_512(encode(value)))).toString(base58btc)
+const sha256_hex = (s) => bytesToHex(sha256(utf8ToBytes(s)))
+const private_key = (k) => Uint8Array.from(Buffer.from(k.toString(16).padStart(64, '0'), 'hex'))
+const public_key = (k) => bytesToHex(secp256k1.getPublicKey(private_key(k), true))
+const derive_address = (key, library_type, discriminator) => {
+  const wrapper = { params: { address: cid({ write: [key] }) }, type: 'static' }
+  return `/record/${cid({ name: discriminator, type: library_type, accessController: cid(wrapper) })}/${discriminator}`
 }
 
-// §5.3.2 LoadedAboutEntry — the envelope `content` is the inlined About
-// payload object, not the base58btc CID string it would carry on the
-// canonical wire form.
-const loadedAboutEntry = {
-  hash: PLACEHOLDER_ENTRY_HASH,
-  id: LIBRARY_ADDRESS,
-  payload: {
-    op: 'PUT',
-    key: ABOUT_ID,
-    value: {
-      id: ABOUT_ID,
-      timestamp: 1611272666695,
-      v: 1,
-      type: 'about',
-      content: aboutPayloadDecoded // inlined; not a CID string
-    }
-  },
-  next: [],
-  refs: [],
-  v: 2,
-  clock: { id: TEST_PUBKEY, time: 1 },
-  key: TEST_PUBKEY,
-  sig: PLACEHOLDER_SIG
+const K = public_key(1)
+const LIBRARY = derive_address(K, 'recordstore', 'library')
+const IDENTITY_LIBRARY = derive_address(K, 'identity', 'identity')
+const WRITE_LIST = { [LIBRARY]: [K] }
+const T0 = 1700000000000
+
+// §3.4: sign dag-cbor(unsigned) with ECDSA/secp256k1 over SHA-256, DER.
+const sign_entry = (library, payload) => {
+  const unsigned = { id: library, payload, next: [], refs: [], v: 2, clock: { id: K, time: 1 } }
+  const sig = secp256k1.Signature.fromBytes(secp256k1.sign(sha256(encode(unsigned)), private_key(1)), 'compact')
+  return { ...unsigned, key: K, sig: bytesToHex(sig.toBytes('der')) }
+}
+
+const about_entry = sign_entry(LIBRARY, {
+  op: 'PUT', key: sha256_hex('about'), value: { type: 'about', v: 1, timestamp: T0, name: 'Spec Fixtures Library' }
+})
+const profile_entry = sign_entry(IDENTITY_LIBRARY, {
+  op: 'PUT', key: sha256_hex('profile'), value: { type: 'profile', v: 1, timestamp: T0, name: 'Test', bio: 'A fixture identity.' }
+})
+
+// §5.3.2 announcement.
+const announcement = {
+  libraries: [{ address: LIBRARY, about: about_entry }],
+  profiles: [profile_entry]
 }
 
 // §5.4.1 heads message.
-const headsMessage = {
-  type: 'heads',
-  heads: [PLACEHOLDER_ENTRY_HASH]
+const heads_message = { type: 'heads', heads: [cid(about_entry)] }
+
+// §5.3.2 trust checks, from the parsed JSON alone.
+const verifies = (entry) => {
+  const { key, sig, ...unsigned } = entry
+  return secp256k1.verify(secp256k1.Signature.fromBytes(Buffer.from(sig, 'hex'), 'der').toBytes('compact'),
+    sha256(encode(unsigned)), Buffer.from(key, 'hex'))
 }
+const parsed = JSON.parse(JSON.stringify(announcement))
+const [library] = parsed.libraries
+const [profile] = parsed.profiles
 
-function deepEqual(a, b) {
-  if (a === b) return true
-  if (typeof a !== typeof b) return false
-  if (a === null || b === null) return a === b
-  if (Array.isArray(a)) {
-    if (!Array.isArray(b) || a.length !== b.length) return false
-    return a.every((x, i) => deepEqual(x, b[i]))
-  }
-  if (typeof a === 'object') {
-    const ak = Object.keys(a).sort()
-    const bk = Object.keys(b).sort()
-    if (ak.length !== bk.length) return false
-    return ak.every((k, i) => k === bk[i] && deepEqual(a[k], b[k]))
-  }
-  return false
-}
-
-console.log('=== §5.3.2 LoadedAboutEntry + §5.4.1 Heads Message ===\n')
-
-const loadedJson = JSON.stringify(loadedAboutEntry)
-const loadedRoundTrip = JSON.parse(loadedJson)
-const loadedRt = deepEqual(loadedAboutEntry, loadedRoundTrip)
-console.log('LoadedAboutEntry JSON byte length: ' + Buffer.byteLength(loadedJson))
-console.log('LoadedAboutEntry sample (first 200 chars):')
-console.log('  ' + loadedJson.slice(0, 200) + '...')
-console.log()
-
-const contentIsDecoded = typeof loadedAboutEntry.payload.value.content === 'object'
-const contentNotCid = typeof loadedAboutEntry.payload.value.content !== 'string'
-const contentAddressMatches =
-  loadedAboutEntry.payload.value.content.address === LIBRARY_ADDRESS
-
-const headsJson = JSON.stringify(headsMessage)
-const headsRoundTrip = JSON.parse(headsJson)
-const headsRt = deepEqual(headsMessage, headsRoundTrip)
-const headsBytes = Buffer.byteLength(headsJson)
-console.log('Heads message JSON: ' + headsJson)
-console.log('Heads message byte length: ' + headsBytes)
-
+const announcement_json = JSON.stringify(announcement)
+const heads_json = JSON.stringify(heads_message)
 const SIZE_BOUND = 256 * 1024
-const headsWithin = headsBytes <= SIZE_BOUND
-const loadedWithin = Buffer.byteLength(loadedJson) <= SIZE_BOUND
+
+console.log('=== §5.3.2 Announcement + §5.4.1 Heads Message ===\n')
+console.log('Library: ' + LIBRARY)
+console.log('About entry.hash:   ' + cid(about_entry))
+console.log('Profile entry.hash: ' + cid(profile_entry))
+console.log('Announcement JSON byte length: ' + Buffer.byteLength(announcement_json))
+console.log('Heads message JSON: ' + heads_json)
+
+const checks = [
+  ['announcement JSON round-trip preserves structure', JSON.stringify(parsed) === announcement_json],
+  ['the About entry hash is recovered from the JSON', cid(library.about) === cid(about_entry)],
+  ['the profile entry hash is recovered from the JSON', cid(profile) === cid(profile_entry)],
+  ['the About signature verifies from the JSON', verifies(library.about)],
+  ['the profile signature verifies from the JSON', verifies(profile)],
+  ['the About entry belongs to the announced library and a write-list signer', library.about.id === library.address &&
+    WRITE_LIST[library.address].includes(library.about.key)],
+  ['the profile entry is in the identity library derived from its key', profile.id === derive_address(profile.key, 'identity', 'identity')],
+  ['the library has a single-key write list, so the profile is its owner\'s', WRITE_LIST[library.address].length === 1 &&
+    WRITE_LIST[library.address][0] === profile.key],
+  ['a tampered About name fails the signature', !verifies({ ...library.about, payload: { ...library.about.payload, value: { ...library.about.payload.value, name: 'x' } } })],
+  ['heads message JSON round-trip', JSON.stringify(JSON.parse(heads_json)) === heads_json],
+  [`announcement <= 256 KiB bound`, Buffer.byteLength(announcement_json) <= SIZE_BOUND],
+  [`heads message <= 256 KiB bound`, Buffer.byteLength(heads_json) <= SIZE_BOUND]
+]
 
 console.log('\nVerifications:')
-console.log('  ' + (loadedRt ? 'PASS' : 'FAIL') + ': LoadedAboutEntry JSON round-trip preserves structure')
-console.log('  ' + (contentIsDecoded ? 'PASS' : 'FAIL') + ': envelope.content is a decoded object (inlined transform applied)')
-console.log('  ' + (contentNotCid ? 'PASS' : 'FAIL') + ': envelope.content is NOT a CID string (would be on canonical wire)')
-console.log('  ' + (contentAddressMatches ? 'PASS' : 'FAIL') + ': inlined content.address equals owning library address (§2.6)')
-console.log('  ' + (headsRt ? 'PASS' : 'FAIL') + ': heads message JSON round-trip')
-console.log('  ' + (headsWithin ? 'PASS' : 'FAIL') + `: heads message <= 256 KiB bound (${headsBytes} of ${SIZE_BOUND})`)
-console.log('  ' + (loadedWithin ? 'PASS' : 'FAIL') + `: LoadedAboutEntry <= 256 KiB bound (${Buffer.byteLength(loadedJson)} of ${SIZE_BOUND})`)
-
-const allPass = loadedRt && contentIsDecoded && contentNotCid && contentAddressMatches && headsRt && headsWithin && loadedWithin
-console.log('\nOverall:', allPass ? 'PASS' : 'FAIL')
-if (!allPass) process.exit(1)
+let all_pass = true
+for (const [label, ok] of checks) {
+  console.log('  ' + (ok ? 'PASS' : 'FAIL') + ': ' + label)
+  if (!ok) all_pass = false
+}
+console.log('\nOverall:', all_pass ? 'PASS' : 'FAIL')
+if (!all_pass) process.exit(1)
 
 write_vector_file({
   generator_url: import.meta.url,
   fixture_id: 'F6',
-  description: 'Network messages: LoadedAboutEntry (§5.3.2) and the heads message (§5.4.1), as UTF-8 JSON.',
+  description: 'Network messages: the announcement (§5.3.2) and the heads message (§5.4.1), as UTF-8 JSON.',
   cases: [
-    { name: 'loaded-about-entry', inputs: { message: loadedAboutEntry }, expected: { json: loadedJson, byte_length: Buffer.byteLength(loadedJson) } },
-    { name: 'heads', inputs: { message: headsMessage }, expected: { json: headsJson, byte_length: headsBytes } }
+    {
+      name: 'announcement',
+      inputs: { message: announcement },
+      expected: {
+        json: announcement_json,
+        byte_length: Buffer.byteLength(announcement_json),
+        about_entry_hash: cid(about_entry),
+        profile_entry_hash: cid(profile_entry)
+      }
+    },
+    { name: 'heads', inputs: { message: heads_message }, expected: { json: heads_json, byte_length: Buffer.byteLength(heads_json) } }
   ]
 })
