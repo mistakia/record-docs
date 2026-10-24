@@ -84,9 +84,12 @@ audio CID (§5.5.1, §6.2.4).
 | ----- | ---------------------- | ---------------------------------------------------------------------------------------------------------- |
 | track | 438                    | `zBwWX8s8jVcoQvakEsZzXaVeakz5eXiyaqb6jPBdQ4wYyz2LT8iKXYneYTrRWxqtEhcyyv8sMcL5ivsGosuE4saCCimeb` |
 
-The round-trip invariant the generator verifies for each row is
+The round-trip invariant the generator verifies is
 `decode(encode(payload))` deep-equals the constructed payload, plus
-the analogous check on the assembled envelope.
+the analogous check on the assembled envelope. The same generator
+encodes an About record (§2.6) named `Spec Fixtures Library` to 61
+bytes of canonical dag-cbor, leading `a4 61 76`: map keys sort by
+length, so `v` comes first.
 
 ## 2.3 ID derivation
 

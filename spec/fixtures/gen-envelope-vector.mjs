@@ -1,14 +1,15 @@
 /**
  * Generate canonical envelope round-trip vectors for spec §2.2.
  *
- * Covers wire-format claim sections: §2.2, §2.4, §2.5, §2.6.
+ * Covers wire-format claim sections: §2.2, §2.4, §2.6.
  *
- * For each of the three envelope types (track / log / about):
- *   1. Construct a canonical payload object per the §2.4 / §2.5 / §2.6 shape.
+ * The track envelope:
+ *   1. Construct a canonical payload object per the §2.4 shape.
  *   2. dag-cbor encode the payload.
  *   3. sha3-512 → CIDv1 (dag-cbor codec) → base58btc → content CID.
  *   4. Assemble the envelope object per §2.2: {id, timestamp, v:1, type, content}.
  *   5. Round-trip: decode(encode(payload)) deep-equals payload.
+ * And the inline About record (§2.6), its dag-cbor bytes and operation key.
  *
  * The test-only private key from F0 is reused so the writer identity in
  * derived addresses is reproducible across fixtures.
@@ -38,8 +39,6 @@ function deepEqual(a, b) {
 }
 
 const FIXED_TIMESTAMP = 1611272666695
-const LIBRARY_ADDRESS =
-  '/record/zdpuAqyy2yLfTpevS4pxfVadSmS14oRNAXMvnAYet9zKwSqZc/library'
 
 // Deterministic stand-ins for content the spec doesn't otherwise pin.
 const FIXED_AUDIO_CID =
@@ -73,26 +72,12 @@ const trackPayload = {
 }
 const trackId = bytesToHex(sha256(new TextEncoder().encode(FIXED_FP)))
 
-// --- Log payload (§2.5) ---
-const linkedLibrary =
-  '/record/zdpuAxgMzJaTqK1HQU6CKQ9p2vUaG4eR9zUk4HwYj9Q1pK7DC/library'
-const logPayload = { address: linkedLibrary, alias: 'friend' }
-const logId = bytesToHex(sha256(new TextEncoder().encode(linkedLibrary)))
-
-// --- About payload (§2.6) ---
-const aboutPayload = {
-  address: LIBRARY_ADDRESS,
-  name: 'Spec Fixtures Library',
-  bio: 'Deterministic test vectors for the Record Protocol v1 spec.',
-  location: 'in vitro',
-  avatar: null
-}
-const aboutId = bytesToHex(sha256(new TextEncoder().encode(LIBRARY_ADDRESS)))
+// --- About record (§2.6), inline: no envelope, no content CID ---
+const aboutRecord = { type: 'about', v: 1, timestamp: FIXED_TIMESTAMP, name: 'Spec Fixtures Library' }
+const aboutKey = bytesToHex(sha256(new TextEncoder().encode('about')))
 
 const cases = [
-  { type: 'track', id: trackId, id_source: FIXED_FP, payload: trackPayload, extras: { tags: ['downtempo', 'fixture'] } },
-  { type: 'log', id: logId, id_source: linkedLibrary, payload: logPayload, extras: {} },
-  { type: 'about', id: aboutId, id_source: LIBRARY_ADDRESS, payload: aboutPayload, extras: {} }
+  { type: 'track', id: trackId, id_source: FIXED_FP, payload: trackPayload }
 ]
 
 console.log('=== §2.2 Envelope Vectors ===\n')
@@ -106,8 +91,7 @@ for (const c of cases) {
     timestamp: FIXED_TIMESTAMP,
     v: 1,
     type: c.type,
-    content: cid,
-    ...c.extras
+    content: cid
   }
   // Round-trip invariant: decode(encode(payload)) deep-equals payload.
   const decoded = decode(cbor)
@@ -129,33 +113,37 @@ for (const c of cases) {
   if (!rt || !envRt) allPass = false
   vector_cases.push({
     name: c.type,
-    inputs: { type: c.type, id_source: c.id_source, timestamp: FIXED_TIMESTAMP, payload: c.payload, extras: c.extras },
+    inputs: { type: c.type, id_source: c.id_source, timestamp: FIXED_TIMESTAMP, payload: c.payload },
     expected: { payload_cbor_hex: bytesToHex(cbor), content_cid: cid, envelope_id: c.id, envelope_cbor_hex: bytesToHex(envCbor) }
   })
 }
 
-// Manual cross-check against RFC 8949 deterministic encoding rules for log payload:
-//   {"address": <linkedLibrary>, "alias": "friend"}
-// Canonical dag-cbor rule: map with 2 entries -> a2; keys are sorted by major-type
-// then by length, then lexicographically. Both keys are text strings; "alias" (5)
-// is shorter than "address" (7), so "alias" comes FIRST in canonical order.
-// Expected leading bytes: a2 65 "alias" -> 65 61 6c 69 61 73 ...
-const logCbor = contentCID(logPayload).cbor
-const expectedLead = 'a26561'
-const actualLead = bytesToHex(logCbor.slice(0, 3))
+// The About record, and a manual cross-check against RFC 8949 deterministic
+// encoding: map keys sort by length then bytewise, so "v" (1) leads, then
+// "name" and "type" (4), then "timestamp" (9). Expected leading bytes:
+// a4 (map of 4) 61 76 ("v").
+const aboutCbor = encode(aboutRecord)
+const aboutRt = deepEqual(decode(aboutCbor), aboutRecord)
+const expectedLead = 'a46176'
+const actualLead = bytesToHex(aboutCbor.slice(0, 3))
 const canonicalCheck = actualLead === expectedLead
-console.log('Manual canonical-order check on log payload:')
-console.log('  expected leading bytes (map-of-2 + shortest-key-first \"alias\"): ' + expectedLead)
-console.log('  actual: ' + actualLead)
-console.log('  ' + (canonicalCheck ? 'PASS' : 'FAIL'))
-if (!canonicalCheck) allPass = false
-
+console.log('--- about record (inline) ---')
+console.log('  record dag-cbor bytes: ' + aboutCbor.length)
+console.log('  operation key: ' + aboutKey)
+console.log('  record round-trip: ' + (aboutRt ? 'PASS' : 'FAIL'))
+console.log('  canonical order, expected leading bytes ' + expectedLead + ', actual ' + actualLead + ': ' + (canonicalCheck ? 'PASS' : 'FAIL'))
+if (!aboutRt || !canonicalCheck) allPass = false
+vector_cases.push({
+  name: 'about',
+  inputs: { record: aboutRecord },
+  expected: { record_cbor_hex: bytesToHex(aboutCbor), operation_key: aboutKey }
+})
 console.log('\nOverall:', allPass ? 'PASS' : 'FAIL')
 if (!allPass) process.exit(1)
 
 write_vector_file({
   generator_url: import.meta.url,
   fixture_id: 'F2',
-  description: 'Envelopes (§2.2): payload content CID and envelope bytes for track, log and about; envelope id is sha256 hex of id_source.',
+  description: 'The track envelope (§2.2): payload content CID and envelope bytes, envelope id the sha256 hex of id_source; and the inline About record (§2.6) with its operation key.',
   cases: vector_cases
 })
