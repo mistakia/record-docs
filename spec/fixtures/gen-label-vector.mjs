@@ -137,7 +137,7 @@ if (!all_pass) process.exit(1)
 
 write_vector_file({
   generator_url: import.meta.url,
-  fixture_id: 'F9',
+  fixture_id: 'F12',
   description: 'Label records (§2.5): operation keys, and per-pair current state under §4.4.2.',
   cases: [{
     name: 'label-state',
