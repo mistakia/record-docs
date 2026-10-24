@@ -1963,7 +1963,6 @@ components:
         - library_type
         - track_count
         - audio_size_bytes
-        - linked_library_count
         - length
         - heads
         - replication_status
@@ -2000,7 +1999,6 @@ components:
             Total size of the audio blobs of the library's live tracks
             (`content.size`), for storage estimates. A track whose content
             payload the node does not hold yet counts zero.
-        linked_library_count: { type: integer }
         length:
           type: integer
           description: Oplog length (count of live entries).
@@ -2565,7 +2563,6 @@ x-websocket-events:
       payload:
         library_address: { type: string }
         track_count: { type: integer }
-        linked_library_count: { type: integer }
         is_processing_index: { type: boolean }
         processing_count:
           type: integer
