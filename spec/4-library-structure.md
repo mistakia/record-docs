@@ -100,10 +100,10 @@ time jumps as remote heads are merged.
 
 `next` MUST include at least one head with the greatest `clock.time`
 among the writer's heads. The entry then sorts after every entry the
-writer knows under §4.4.2, as under v1.0. Receivers cannot see the
+writer knows under §4.4.2. Receivers cannot see the
 writer's heads, so this is a writer rule, not a verification check.
-A writer with at most 256 heads SHOULD cite them all, as v1.0 writers
-do. A writer with more SHOULD fill the rest of `next` with the heads
+A writer with at most 256 heads SHOULD cite them all. A writer with
+more SHOULD fill the rest of `next` with the heads
 of greatest `clock.time`. A head it does not cite stays a head and
 is cited by a later append. Each append that cites 256 heads replaces
 them with one, so a writer facing `n` heads reaches a single head
@@ -116,18 +116,14 @@ have to exceed the §5.4.2 fan-out cap. Inert entries (§3.5.10) still
 count as heads, so revocation would not help.
 
 **Merge rule.** Merging does not change the append rule: an append's
-time follows from the heads it cites. v1.0 kept a local Lamport time,
-`max(local_time, max(remote.clock.time for remote in merged_entries))`.
-That value never exceeds the greatest head time, because the entry
-with the greatest time has no child, so a v1.0 writer citing every
-head computed the same time.
+time follows from the heads it cites, and no separate local clock is
+kept.
 
-**Verification (v1.1).** A receiver MUST reject an entry whose
+**Verification.** A receiver MUST reject an entry whose
 `clock.time` is not exactly `max(t.clock.time for t in next) + 1`, or
 `1` when `next` is empty. The entries in `next` are in hand, because an
 entry merges only once its `next` closure is verified (§5.4.2 item 5).
-This is the append rule above, checked, so every entry a conforming
-v1.0 writer produced passes. Without the check, a writer could sign
+This is the append rule above, checked. Without the check, a writer could sign
 `clock.time = 2^53 - 1`: that entry would win every §4.4.2 comparison
 against the owner's later PUTs and DELs, and no conforming writer
 could append after it.
@@ -174,41 +170,43 @@ their clock relationships.
 When applying an entry to local state:
 
 1. Decode the operation from `payload`.
-2. If `payload.op === "PUT"`, route to the type-specific add handler
-   (add-about / add-track / add-log). A capability or revocation
-   record (§3.5.5, §3.5.10) goes to the capability index used by
-   §3.5.9.
-3. If `payload.op === "DEL"`, route to the type-specific remove handler.
-   DEL is only valid for `"track"` and `"log"` types.
+2. If `payload.op === "PUT"`, route by the value's `type`: a Track
+   envelope to the track state, a label record (§2.5) to the label
+   state of each pair it names, an About record (§2.6) to the
+   library's name, and a capability or revocation record (§3.5.5,
+   §3.5.10) to the capability index used by §3.5.9.
+3. If `payload.op === "DEL"`, tombstone the track whose id is `key`.
+   DEL is only valid for `"track"` (§2.8.2).
 4. Track the entry in a local index so the implementation can query
-   "what is the current state of key K in library L?"
+   the current state of a key or label pair in a library.
 
 An inert entry (§3.5.10) is not dispatched.
 
-A v1.1 receiver MUST merge an entry signed by a `write`-list key
-whose PUT value has a `type` it does not recognise, and MUST give it
-no state effect. A later minor version's records then do not stall
-v1.1 replicas the way capability records stall v1.0 ones (§3.5.11).
-The same entry signed by anyone else is rejected, since no action
+A receiver MUST merge an entry signed by a `write`-list key whose PUT
+value has a `type` it does not recognise, and MUST give it no state
+effect, so a later version's records do not stall its replicas. The
+same entry signed by anyone else is rejected, since no action
 authorises it (§3.5.6).
 
-This dispatch applies to `recordstore` libraries. A `listens` library
-holds only listen writes (§2.7), and an `identity` library dispatches
-by record type (§4.8.2).
+This dispatch applies to `recordstore` libraries, and to `labels`
+libraries for the label and About records they admit (§4.9). A
+`listens` library holds only listen writes (§2.7), and an `identity`
+library dispatches by record type (§4.8.2).
 
 ### 4.4.2 Current-state resolution
 
-For any given `(library_address, entry_id)` tuple, the "current"
-entry among a set of signed log entries is defined by sorting the set
-by the three-element key
+For any given `(library_address, key)` tuple, where the key is a
+track id or the About key, the "current" entry among a set of signed
+log entries is defined by sorting the set by the three-element key
 
 ```
 (clock.time DESC, envelope.timestamp DESC, entry.hash ASC)
 ```
 
-and taking the first element. Implementations MUST use `clock.time`
-as the primary ordering, the envelope `timestamp` as the first
-tiebreaker, and `entry.hash` as the final tiebreaker. The `entry.hash`
+and taking the first element. For an inline record, its own
+`timestamp` stands in for `envelope.timestamp`. Implementations MUST
+use `clock.time` as the primary ordering, the envelope `timestamp` as
+the first tiebreaker, and `entry.hash` as the final tiebreaker. The `entry.hash`
 used for the final tiebreaker is the CID of the signed dag-cbor entry
 object (§4.1.2) compared as a byte string; because this CID is a pure
 function of the signed bytes (all fields including `key` and
@@ -220,8 +218,12 @@ string), so encoding choice cannot affect the result.
 Inert entries (§3.5.10) take no part in this ordering.
 
 A DEL entry participates in the same ordering as a PUT entry keyed
-by the same `entry_id`; a DEL is "current" if it sorts first under
-the above key, in which case the entry is considered tombstoned.
+by the same track id; a DEL is "current" if it sorts first under the
+above key, in which case the track is considered tombstoned.
+
+Label state is resolved per `(library_address, track_id, label)`
+pair by the same ordering, over the label records that name the pair
+(§2.5). `spec/fixtures/gen-label-vector.mjs` is its reference vector.
 
 An implementation MUST only apply PUT/DEL effects to the "current"
 entry — older entries with the same key MAY be dropped from the
@@ -267,10 +269,11 @@ When merging a remote log into the local log:
    per §4.3. An entry that was a local head before the merge MAY
    cease to be a head after the merge if a newly merged entry
    references it in `next`.
-5. For each key touched by a merged entry, or holding an entry that
-   a newly effective revocation made inert (§3.5.10), re-run the
-   current-state resolution (§4.4.2) over the complete set of known
-   entries for that key and update the query index accordingly.
+5. For each key or label pair touched by a merged entry, or touched
+   by an entry that a newly effective revocation made inert
+   (§3.5.10), re-run the current-state resolution (§4.4.2) over the
+   complete set of known entries for it and update the query index
+   accordingly.
 
 Merges MUST be associative and commutative: for any three entry
 sets `A`, `B`, `C`, the oplog state resulting from
@@ -303,13 +306,12 @@ library's replication policy (§4.6.1) and the identity's pins
 3. The AC inner write-list (chain object 3).
 4. The signed log entry object (the dag-cbor block whose CID is
    `entry.hash`, §4.1.2) for every entry in the oplog.
-5. For `recordstore` entries, the dag-cbor payload referenced by
+5. For Track entries, the dag-cbor payload referenced by
    `envelope.content` (§2.1).
 6. For Track entries: the audio blob referenced by `content.hash`
-   and each CID in `content.artwork`. For the library's current About
-   entry (§2.6): the image blob referenced by `avatar`, so a peer
-   replicating the library still shows its avatar while the owner is
-   offline.
+   and each CID in `content.artwork`. For an identity library: the
+   image blob referenced by the current profile's `avatar` (§4.8.2),
+   so a peer still shows the avatar while the identity is offline.
 
 Item 4 and item 5 are distinct content-addressed objects. Item 4 is
 the full signed wrapper; item 5 is the application payload it points
@@ -343,19 +345,14 @@ log itself (§5.4), are the same in every mode.
 | `selective`  | MUST fetch and pin when its track view matches the policy filter; otherwise as `index_only` |
 | `index_only` | MUST NOT fetch proactively                                                    |
 
-- A link recorded in the identity library, with no configured policy,
-  is `full`, keeping the v1.0 recommendation to pin item 6 as the
-  default.
-- A link that §4.8.4 derives from a legacy Log entry, made before
-  v1.1, defaults to `index_only`. Upgrading a node therefore does not
-  start fetching every linked library's audio. Relinking it records a
-  link in the identity library, which defaults to `full`.
+- A link with no configured policy is `full`.
 - An own library is always replicated as `full`.
-- The current About entry's `avatar` is kept as artwork is: a `full`
-  or `selective` library MUST fetch and pin it, and an `index_only`
+- The avatar of a linked library's owner, from the profile its
+  announcement carries (§5.3.2), is kept as artwork is: a `full` or
+  `selective` library MUST fetch and pin it, and an `index_only`
   library MUST NOT fetch it proactively. A `selective` filter reads
-  a track view, which an About entry does not have, so the filter
-  does not decide the avatar.
+  a track view, which a profile does not have, so the filter does not
+  decide the avatar.
 - In `index_only` mode a blob fetched on demand, for example to serve
   playback, MAY be cached without a pin and evicted. The cache MUST
   be bounded; its size is the implementation's choice (§1.7).
@@ -363,8 +360,8 @@ log itself (§5.4), are the same in every mode.
   superseded, no longer matches the filter, or the mode changes, the
   implementation MAY unpin its item 6 objects, unless a pin, an own
   library, or another library's policy still holds them. The same
-  holds for an avatar whose About entry is superseded or tombstoned,
-  or whose library moves to `index_only`. Until it is unpinned, a
+  holds for an avatar whose profile is superseded, or whose library
+  moves to `index_only`. Until it is unpinned, a
   superseded avatar stays pinned with the library, and unlink
   releases it as above.
 - Pausing replication (§5.4.4) suspends the fetches a policy calls
@@ -379,7 +376,7 @@ evaluated against this object, built for each live Track entry:
   library_address:  <string>,       // the library holding the entry
   added_by:         <pubkey_hex>,   // entry.key
   added_at:         <uint64>,       // envelope.timestamp
-  tags:             <string[]>,     // envelope.tags, [] when absent
+  tags:             <string[]>,     // labels applied to the track (below), [] when none
   cid:              <string>,       // content.hash
   audio_size_bytes: <uint64>,       // content.size
   duration_seconds: <number>?,      // content.audio.duration
@@ -389,7 +386,10 @@ evaluated against this object, built for each live Track entry:
 }
 ```
 
-A field whose source is absent or null is absent from the view.
+`tags` holds the labels applied to the track (§2.5) by the library
+holding the entry and by every own library of the replicating
+identity. A field whose source is absent or null is absent from the
+view.
 Building the view reads item 5, the content payload, which every mode
 already pins.
 
@@ -423,7 +423,7 @@ to peers.
 ## 4.8 Identity library
 
 An identity library, also called the identity meta-log, records an
-identity's own libraries, its links, and its pins. It is a library
+identity's own libraries, its links, its pins, and its profile. It is a library
 in the §4.1 sense, a signed append-only log under a §3.5 access
 controller, with library type `identity`, at the address §3.6.2
 derives from the identity key `K`.
@@ -447,6 +447,7 @@ is not `K` (§3.5.4) or whose operation carries `capability_id`
 | `library` | `K` owns the library           | the library retires | `sha256(address)` |
 | `link`    | `K` follows the library        | unlink              | `sha256(address)` |
 | `pin`     | retain the blob (§4.6.2)       | unpin               | `sha256(cid)`     |
+| `profile` | the identity's profile         | (not allowed)       | `sha256("profile")` |
 
 PUT values:
 
@@ -454,6 +455,7 @@ PUT values:
 { type: "library", v: 1, timestamp: <uint64>, address: <string> }
 { type: "link",    v: 1, timestamp: <uint64>, address: <string>, alias: <string>? }
 { type: "pin",     v: 1, timestamp: <uint64>, cid: <string> }
+{ type: "profile", v: 1, timestamp: <uint64>, name: <string>?, bio: <string>?, avatar: <string>? }
 ```
 
 A DEL value is `{ type, timestamp }`, as in §2.8.2, with `type`
@@ -466,6 +468,10 @@ naming the record.
   the dag-pb codec and the same multihash. Every encoding of one CID
   therefore keys one pin. A `content.hash` matches a pin when its
   canonical form equals `cid`.
+- `name`, when present, MUST be 1 to 128 UTF-8 bytes; `bio` at most
+  1024 UTF-8 bytes; `avatar` an image blob CID in the canonical form
+  of `cid`, never a URL, since a client that loads a URL leaks its
+  viewer's network identity to the publisher.
 - `timestamp` is milliseconds since the Unix epoch, as in §2.2.
 - `key` is the lowercase-hex sha256 of the UTF-8 string, as in §2.3.
 
@@ -473,8 +479,16 @@ A receiver MUST reject an entry whose record has a `type` this
 section defines but breaks its shape: a missing or mistyped field, a
 field this section does not define, an `address` that is not a
 library address, an `alias` over 128 bytes, a `cid` not in canonical
-form, or a `key` not derived as the table states. This matches how a
-malformed envelope is treated (§2.2).
+form, a `key` not derived as the table states, or a DEL of a
+`profile` record. This matches how a malformed envelope is treated
+(§2.2).
+
+**Profile growth.** A `profile` record is the exception to the
+field rule: a receiver ignores a profile field this section does not
+define, and treats a `profile` record whose `v` is greater than 1 as
+an unknown record. A later version can then add to the profile
+without stalling replication of the identity library (§5.4.2 item
+5). A later PUT replaces the whole profile.
 
 **Current state.** For each `(type, key)` pair, the current record is
 chosen by the §4.4.2 ordering, with the record `timestamp` in place
@@ -484,7 +498,7 @@ key, because a `library` record and a `link` record for the same
 address share a key.
 
 **Reference vector.** `spec/fixtures/gen-meta-log-vector.mjs` signs
-nine entries into the identity library of the §3.4.5 test key
+ten entries into the identity library of the §3.4.5 test key
 (§3.6.2), each with `next` naming the one before:
 
 | Entry | Operation | Signed bytes | `entry.hash` (base58btc CIDv1) |
@@ -493,23 +507,26 @@ nine entries into the identity library of the §3.4.5 test key
 | 2     | `link` PUT of test key `k = 2`'s `library`, alias `friend` | 785 | `zBwWX6tGPpW4hsRc5AhPJJhFVopAeJXmjzj9zm1aXrvnoUo9XdGZ2gRiAcmSFdovBmfHnC8rc4ny59uWSrJGAz93gdT1J` |
 | 3     | `pin` PUT of the §6.2.4 audio CID, canonical form | 719 | `zBwWX7isyhFyCGzkHqmj5XZ4Auq7rss84UsPqtb4LCXsJmJwschU9Nnpn9PkBkFnSNFX2dA8t55QbMFfmyNZUu1HmFkuB` |
 | 4     | `link` DEL of entry 2's address | 650 | `zBwWX94oXV3jxM3ZchvB6FVBDJ6va4BhRvLinaHkaMGKcTrmV5fJDYtJXFGXMxB4Sra39YT1ugrBTrWjAzKtYdTV2RRSE` |
-| 5     | `library` PUT of the own `mixes` library | 775 | `zBwWX8emvUUZidkjMXTqY1FkrL8Z3byJyh3Pvb3GJg613EknTdmNFM2C2yDePJ9q6biMELLiS1bwnirGC1i2NSDctnxit` |
-| 6     | `link` PUT of the same `mixes` address | 772 | `zBwWX8sz9N4cENbiU15tWb1kQUeWuAM1ocugdCCh1kYjjv7r2VVP8pMXXoiKW4YEff8Vkr6LW6Vv1cJ1QHVdH7NfwKQ6n` |
-| 7     | `link` DEL of `mixes` | 652 | `zBwWX9zPbVPvWVdLmxxX3JfEi9iXGsuoP9Q1SnebpU6JKU2SAjMCputjt3DPiNzsE6TAmUYAf7Kh57rJvSbKdHJd5ebGa` |
-| 8     | `library` DEL of `mixes` (retire) | 655 | `zBwWX9m9dkzAdkitjJUAvBDd3zt4n9W2Y2ziGtzU5qnhRJUvNYVBjfggvBV6ZnJfHFPYmKhbh8X8QoiJJKtGx1kvD1qrf` |
-| 9     | a stray `library` PUT of `mixes` | 773 | `zBwWX8M4t6XTCqyoP198pk8KUbJj3N4vWmJ6J5ST4uqsQMCCQmy9RB6p2b1ejNXbSNoVTyvMK42TpSbVMWnSGm4HApgKY` |
+| 5     | `library` PUT of a second own library, discriminator `q4ht7nxk2mzv6wrd3pjc5bfgya` | 796 | `zBwWX6nT9Emb12f1Rxneu5RsNzeydWpBKjKeyyzrZ15CWZK1TxUEsLYh86ViLDkdXQVJRGpzhggZr3xMRF32LMHgt1Xfa` |
+| 6     | `link` PUT of the same address | 791 | `zBwWX5fV5s75PvpNVUkMnDLLyPZa6ZjX7Bn3muUZXojLYrMMyZTZNRhdkeePDfnfNLGvUiQSh91vmHfSfoF3gHPKQG3zH` |
+| 7     | `link` DEL of the second library | 652 | `zBwWX7oAf1DHnFTE7QYm6qkeuAeBjEU3D8JUGz3DjKoK5psbmpFBa2AZvBtb5TLMAhDEvtN3P1cbEzPx1Rufey7i9CFk7` |
+| 8     | `library` DEL of the second library (retire) | 653 | `zBwWX9yYbHJniPuFXdbbF2SUbXMwzr8Y5LeCCx2bd95XXerVaG48aLmv7EdPFoq8LqGSdLqHqY3TbbBKFmh5cktm6kFut` |
+| 9     | a stray `library` PUT of the second library | 794 | `zBwWX59zuffDARffT9ABnjKm5xPUgtPqQtvFbz8Ev9drgkjkymfcPaeEueMaCXpcHSF717C9hZUzYfUwtLKSv3Dxa16nk` |
+| 10    | `profile` PUT with a name, a bio and the entry 3 CID as avatar | 758 | `zBwWX9CDL9zdEjBGKyj9XoXktTPNQSegzptAUZhajZWFGSXYQy6D91RKguCdt2rvdW9bzbP8M98C4SkZDr2YHA4kqv4eb` |
 
-After all nine, the §3.5.1 library record and the pin are current
-PUTs, both links are current DELs, and `mixes` is retired. Before
-entry 8, the `mixes` library record is a PUT while its link record is
-a DEL: the two share a key but resolve apart. The script also rejects
-a pin whose `cid` is base58btc rather than canonical, and a link whose
-alias is 129 bytes.
+After all ten, the §3.5.1 library record, the pin and the profile are
+current PUTs, both links are current DELs, and the second library is
+retired. Before entry 8, the second library's record is a PUT while
+its link record is a DEL: the two share a key but resolve apart. The
+script also rejects a pin whose `cid` is base58btc rather than
+canonical, a link whose alias is 129 bytes, a profile DEL, a profile
+avatar that is a URL, and a profile name over 128 bytes, and accepts
+a profile with an undefined field and a profile of a later version.
 
 **Unknown records.** A receiver MUST merge an entry signed by `K`
 whose record `type` it does not recognise, and MUST give that entry
 no state effect. Later versions can then add record kinds without
-stalling v1.1 replicas.
+stalling replicas.
 
 ### 4.8.3 Own libraries
 
@@ -520,10 +537,9 @@ an identity library cannot claim another identity's library. A
 record that fails the check has no effect.
 
 An implementation holding `K` MUST record with a `library` PUT every
-library it creates for `K`. It MUST also record each own library it
-created before v1.1, the first time it opens `K` at v1.1, so the
-identity library lists every own library. Concurrent duplicate PUTs
-from two devices resolve per §4.4.2 and are harmless.
+library it creates for `K`, so the identity library lists every own
+library. Concurrent duplicate PUTs from two devices resolve per
+§4.4.2 and are harmless.
 
 **Retirement.** A DEL of a `library` record retires the library for
 good. Once any `library` DEL for a key is in the identity library, the
@@ -538,38 +554,21 @@ valid, and peers that link it are unaffected. Implementations holding
 count it as an own library when choosing a default write target
 (chapter 7). They MAY keep replicating and announcing it.
 
-**Listens.** An identity has at most one active own library of type
-`listens`, and its listens are written there (§6.5). A writer MUST NOT
-retire it: retirement is permanent, and the identity's listens would
-have nowhere to go. If a retirement of it is found anyway, from a
-non-conforming writer, the identity creates a new listens library
-with a new discriminator (§3.6.1) before recording another listen.
+**Listens and labels.** An identity has exactly one active own
+library of type `listens` and one of type `labels`. Its listens are
+written to the first (§6.5) and its own labels to the second (§4.9).
+An implementation creating a new identity creates both, with the
+initial discriminators `listens` and `labels` (§3.6.1). A writer MUST
+NOT retire either: retirement is permanent, and the records would have
+nowhere to go. If a retirement of one is found anyway, from a
+non-conforming writer, the identity creates a replacement with a
+random discriminator (§3.6.1) before writing to it again.
 
 ### 4.8.4 Links
 
 `K`'s link set is the set of addresses whose current `link` record is
-a PUT. Writers MUST record links and unlinks in the identity library,
-and MUST NOT append new Log PUTs (§2.5) to a recordstore library.
-
-Log entries written before v1.1 stay readable as links, so no
-migration is needed. Where both sources speak, the identity library
-wins:
-
-- For an address with any `link` record in the identity library, PUT
-  or DEL, the current `link` record alone decides whether it is
-  linked, and supplies the alias.
-- For an address with no `link` record, a live Log entry in any own
-  library of `K`, active or retired, links it with that entry's
-  alias, as in v1.0.
-
-The identity library wins because a v1.1 writer records every link
-change there, so any record there is newer intent than a legacy Log
-entry. Comparing the two by clock is not possible: Lamport clocks of
-different logs are unrelated (§4.2).
-
-When unlinking an address that a legacy Log entry in an own library
-links, a writer SHOULD also append a Log DEL to that library, so v1.0
-peers reading it see the unlink.
+a PUT, with the alias that record carries. Links and unlinks are
+recorded only here.
 
 ### 4.8.5 Replication across devices
 
@@ -580,10 +579,22 @@ writes from two devices holding the same key produce several heads,
 which merge per §4.5. Any other peer MAY replicate an identity
 library; like every library, it is public.
 
-### 4.8.6 v1.0 peers
+## 4.9 Labels library
 
-A v1.0 peer refuses to open an identity library, because step 1 of
-the §3.5.1 resolution rejects its manifest type. Nothing a v1.0 peer
-reads refers to an identity library, so the only effect is that v1.0
-peers do not see the links, pins, and retirements recorded there.
-They still see Log entries written before v1.1.
+A labels library is the home of an identity's own labels: the labels
+a person applies for themselves, on any track, held by any library
+or by none. It is a library of type `labels` with `write` list `[K]`,
+one active per identity (§4.8.3).
+
+- It admits label records (§2.5) and an About record (§2.6), and
+  nothing else: no Track envelope, no DEL, and no capability record.
+  A receiver MUST reject any other entry in it (§2.8).
+- It takes no capabilities (§3.5.5), so only `K` writes it. Labels
+  that several identities curate together belong in a co-managed
+  `recordstore` library instead.
+- It is never a default write target for tracks, and it is never the
+  default import target (chapter 7).
+
+A label applies wherever a reader counts the labels library's labels.
+Chapter 7 counts every own library by default, so a person's labels
+appear in every view of their own and linked libraries.

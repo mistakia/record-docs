@@ -3,20 +3,24 @@
  *
  * Covers wire-format claim sections: §4.8.1, §4.8.2.
  *
- * Signs a nine-entry chain into the F0 test identity's identity library
+ * Signs a ten-entry chain into the F0 test identity's identity library
  * (§3.6.2), each entry a §4.1.1 signed object whose payload carries an
  * inline §4.8.2 record:
  *   1. library PUT — the F3 own library
  *   2. link PUT    — the k=2 test identity's "library" library, alias "friend"
  *   3. pin PUT     — the §6.2.4 audio CID, in canonical form (CIDv1 base32)
  *   4. link DEL    — unlinks entry 2's address
- *   5-7. library PUT, link PUT, link DEL of the own "mixes" library: the
- *      library and link records share a key, and the link DEL leaves the
- *      library record a PUT, since state is per (type, key)
- *   8-9. library DEL of "mixes", then a stray library PUT: retirement is
- *      terminal (§4.8.3), so "mixes" stays retired
- * Then resolves current state, and rejects two malformed records: a pin
- * whose cid is not canonical, and a link whose alias exceeds 128 bytes.
+ *   5-7. library PUT, link PUT, link DEL of a second own library, with a
+ *      §3.6.1 random discriminator: the library and link records share a
+ *      key, and the link DEL leaves the library record a PUT, since state
+ *      is per (type, key)
+ *   8-9. library DEL of the second library, then a stray library PUT:
+ *      retirement is terminal (§4.8.3), so it stays retired
+ *   10. profile PUT — name, bio and avatar
+ * Then resolves current state, rejects malformed records (a pin whose cid
+ * is not canonical, a link whose alias exceeds 128 bytes, a profile DEL, a
+ * profile avatar that is a URL, a profile name over 128 bytes), and accepts
+ * a profile with an undefined field and a profile of a later version.
  *
  * Test-only private keys k=1 and k=2. DO NOT USE for anything real.
  */
@@ -58,7 +62,7 @@ const K = public_key(1)
 const IDENTITY_LIBRARY = derive_address({ key: K, library_type: 'identity', discriminator: 'identity' })
 const OWN_LIBRARY = derive_address({ key: K, library_type: 'recordstore', discriminator: 'library' })
 const FRIEND_LIBRARY = derive_address({ key: public_key(2), library_type: 'recordstore', discriminator: 'library' })
-const MIXES_LIBRARY = derive_address({ key: K, library_type: 'recordstore', discriminator: 'mixes' })
+const SECOND_LIBRARY = derive_address({ key: K, library_type: 'recordstore', discriminator: 'q4ht7nxk2mzv6wrd3pjc5bfgya' })
 // §4.8.2 canonical pin form: CIDv1, base32. The §6.2.4 audio CID, stored
 // in content.hash as base58btc, is the same CID.
 const canonical_cid = (s) => CID.parse(s, s.startsWith('z') ? base58btc : undefined).toV1().toString(base32)
@@ -70,11 +74,12 @@ const operations = [
   { op: 'PUT', key: sha256_hex(FRIEND_LIBRARY), value: { type: 'link', v: 1, timestamp: T0 + 1, address: FRIEND_LIBRARY, alias: 'friend' } },
   { op: 'PUT', key: sha256_hex(AUDIO_CID), value: { type: 'pin', v: 1, timestamp: T0 + 2, cid: AUDIO_CID } },
   { op: 'DEL', key: sha256_hex(FRIEND_LIBRARY), value: { type: 'link', timestamp: T0 + 3 } },
-  { op: 'PUT', key: sha256_hex(MIXES_LIBRARY), value: { type: 'library', v: 1, timestamp: T0 + 4, address: MIXES_LIBRARY } },
-  { op: 'PUT', key: sha256_hex(MIXES_LIBRARY), value: { type: 'link', v: 1, timestamp: T0 + 5, address: MIXES_LIBRARY } },
-  { op: 'DEL', key: sha256_hex(MIXES_LIBRARY), value: { type: 'link', timestamp: T0 + 6 } },
-  { op: 'DEL', key: sha256_hex(MIXES_LIBRARY), value: { type: 'library', timestamp: T0 + 7 } },
-  { op: 'PUT', key: sha256_hex(MIXES_LIBRARY), value: { type: 'library', v: 1, timestamp: T0 + 8, address: MIXES_LIBRARY } }
+  { op: 'PUT', key: sha256_hex(SECOND_LIBRARY), value: { type: 'library', v: 1, timestamp: T0 + 4, address: SECOND_LIBRARY } },
+  { op: 'PUT', key: sha256_hex(SECOND_LIBRARY), value: { type: 'link', v: 1, timestamp: T0 + 5, address: SECOND_LIBRARY } },
+  { op: 'DEL', key: sha256_hex(SECOND_LIBRARY), value: { type: 'link', timestamp: T0 + 6 } },
+  { op: 'DEL', key: sha256_hex(SECOND_LIBRARY), value: { type: 'library', timestamp: T0 + 7 } },
+  { op: 'PUT', key: sha256_hex(SECOND_LIBRARY), value: { type: 'library', v: 1, timestamp: T0 + 8, address: SECOND_LIBRARY } },
+  { op: 'PUT', key: sha256_hex('profile'), value: { type: 'profile', v: 1, timestamp: T0 + 9, name: 'Test', bio: 'A fixture identity.', avatar: AUDIO_CID } }
 ]
 
 const entries = []
@@ -122,7 +127,9 @@ const before_retire = resolve_state(7)
 const is_address = (a) => typeof a === 'string' && /^\/record\/[^/]+\/[0-9a-zA-Z-]*$/.test(a)
 const well_formed = ({ op, key, value }) => {
   const only = (keys) => Object.keys(value).every((k) => keys.includes(k))
-  if (op === 'DEL') return only(['type', 'timestamp']) && Number.isSafeInteger(value.timestamp)
+  if (op === 'DEL') return value.type !== 'profile' && only(['type', 'timestamp']) && Number.isSafeInteger(value.timestamp)
+  // A profile of a later version is an unknown record: merged, no effect (§4.8.2).
+  if (value.type === 'profile' && Number.isSafeInteger(value.v) && value.v > 1) return true
   if (value.v !== 1 || !Number.isSafeInteger(value.timestamp)) return false
   switch (value.type) {
     case 'library': return only(['type', 'v', 'timestamp', 'address']) && is_address(value.address) && key === sha256_hex(value.address)
@@ -130,22 +137,35 @@ const well_formed = ({ op, key, value }) => {
       key === sha256_hex(value.address) && (value.alias === undefined || utf8ToBytes(value.alias).length <= 128)
     case 'pin': return only(['type', 'v', 'timestamp', 'cid']) && typeof value.cid === 'string' &&
       canonical_cid(value.cid) === value.cid && key === sha256_hex(value.cid)
+    // Undefined profile fields are ignored, not rejected (§4.8.2).
+    case 'profile': return key === sha256_hex('profile') &&
+      (value.name === undefined || (typeof value.name === 'string' && value.name.length > 0 && utf8ToBytes(value.name).length <= 128)) &&
+      (value.bio === undefined || (typeof value.bio === 'string' && utf8ToBytes(value.bio).length <= 1024)) &&
+      (value.avatar === undefined || (typeof value.avatar === 'string' && /^b[a-z2-7]+$/.test(value.avatar) && canonical_cid(value.avatar) === value.avatar))
     default: return true
   }
 }
 const base58_pin = 'zb2rhWrAP3dch4trZWGArAEEN8mqFPhsQ2Jojbedxdq8MtCgH'
 const malformed = [
   ['pin whose cid is not canonical', { op: 'PUT', key: sha256_hex(base58_pin), value: { type: 'pin', v: 1, timestamp: T0, cid: base58_pin } }],
-  ['link whose alias exceeds 128 bytes', { op: 'PUT', key: sha256_hex(FRIEND_LIBRARY), value: { type: 'link', v: 1, timestamp: T0, address: FRIEND_LIBRARY, alias: 'x'.repeat(129) } }]
+  ['link whose alias exceeds 128 bytes', { op: 'PUT', key: sha256_hex(FRIEND_LIBRARY), value: { type: 'link', v: 1, timestamp: T0, address: FRIEND_LIBRARY, alias: 'x'.repeat(129) } }],
+  ['profile DEL', { op: 'DEL', key: sha256_hex('profile'), value: { type: 'profile', timestamp: T0 } }],
+  ['profile avatar that is a URL', { op: 'PUT', key: sha256_hex('profile'), value: { type: 'profile', v: 1, timestamp: T0, avatar: 'https://example.com/a.png' } }],
+  ['profile name over 128 bytes', { op: 'PUT', key: sha256_hex('profile'), value: { type: 'profile', v: 1, timestamp: T0, name: 'x'.repeat(129) } }]
+]
+const tolerated = [
+  ['profile with an undefined field', { op: 'PUT', key: sha256_hex('profile'), value: { type: 'profile', v: 1, timestamp: T0, name: 'Test', pronouns: 'they' } }],
+  ['profile of a later version', { op: 'PUT', key: sha256_hex('profile'), value: { type: 'profile', v: 2, timestamp: T0, display: { name: 'Test' } } }]
 ]
 
 console.log('\nCanonical pin cid: ' + AUDIO_CID)
 console.log('\nCurrent state:')
 for (const [label, type, address] of [['library', 'library', OWN_LIBRARY], ['link (friend)', 'link', FRIEND_LIBRARY],
-  ['library (mixes)', 'library', MIXES_LIBRARY], ['link (mixes)', 'link', MIXES_LIBRARY]]) {
+  ['library (second)', 'library', SECOND_LIBRARY], ['link (second)', 'link', SECOND_LIBRARY]]) {
   console.log(`  ${label}: ${state(type, sha256_hex(address))}`)
 }
 console.log(`  pin: ${state('pin', sha256_hex(AUDIO_CID))}`)
+console.log(`  profile: ${state('profile', sha256_hex('profile'))}`)
 
 const checks = [
   ['every entry signs into the identity library address', entries.every((e) => e.signed.id === IDENTITY_LIBRARY)],
@@ -156,9 +176,11 @@ const checks = [
   ['own library record is a current PUT', state('library', sha256_hex(OWN_LIBRARY)) === 'PUT'],
   ['friend link is unlinked by the later DEL', state('link', sha256_hex(FRIEND_LIBRARY)) === 'DEL'],
   ['pin record is a current PUT', state('pin', sha256_hex(AUDIO_CID)) === 'PUT'],
-  ['mixes link DEL leaves the mixes library record a PUT (per type, key)', before_retire('library', sha256_hex(MIXES_LIBRARY)) === 'PUT' && before_retire('link', sha256_hex(MIXES_LIBRARY)) === 'DEL'],
-  ['mixes stays retired after a later library PUT', state('library', sha256_hex(MIXES_LIBRARY)) === 'retired'],
+  ['second link DEL leaves the second library record a PUT (per type, key)', before_retire('library', sha256_hex(SECOND_LIBRARY)) === 'PUT' && before_retire('link', sha256_hex(SECOND_LIBRARY)) === 'DEL'],
+  ['profile record is a current PUT', state('profile', sha256_hex('profile')) === 'PUT'],
+  ['second library stays retired after a later library PUT', state('library', sha256_hex(SECOND_LIBRARY)) === 'retired'],
   ...malformed.map(([label, payload]) => [`reject: ${label}`, !well_formed(payload)]),
+  ...tolerated.map(([label, payload]) => [`accept, no rejection: ${label}`, well_formed(payload)]),
   ['entries chain through next', entries.every((e, i) => i === 0 || e.signed.next[0] === entries[i - 1].hash)]
 ]
 

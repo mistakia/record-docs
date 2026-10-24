@@ -1,0 +1,209 @@
+{
+  "fixture_id": "F9",
+  "generator": "gen-label-vector.mjs",
+  "description": "Label records (§2.5): operation keys, and per-pair current state under §4.4.2.",
+  "cases": [
+    {
+      "name": "label-state",
+      "inputs": {
+        "library": "/record/zBwWX6eaeb5ZhToR5AL62215fMiLTZYAtYpnDcBCebF4PJiLWK2n8MnGCArMMZc3nbLvaCGsg51etXpMrdVH5rgd9DUf8/library",
+        "entries": [
+          {
+            "name": "E1",
+            "entry_hash": "zBwWX9xHYcyaGijdXW1c7cBGTT1BMX7puKLzv8sxW88xiZEuhk6Jwji8bXpixuFNs5xZUvRV4eEvcHdWh6HLhsNmJX9nT",
+            "signed": {
+              "id": "/record/zBwWX6eaeb5ZhToR5AL62215fMiLTZYAtYpnDcBCebF4PJiLWK2n8MnGCArMMZc3nbLvaCGsg51etXpMrdVH5rgd9DUf8/library",
+              "payload": {
+                "op": "PUT",
+                "key": "f38f274cb0b9b709657ca3815bfa9a574b88ce16e5eb2afd814e93aba2e84383",
+                "value": {
+                  "type": "labels",
+                  "v": 1,
+                  "timestamp": 1700000000000,
+                  "set": [
+                    [
+                      "cd24f44d2ee1fb5dba99a6cac74f0398f5a909f3341688d19ea59926c8ef693f",
+                      "mix/x"
+                    ],
+                    [
+                      "cd24f44d2ee1fb5dba99a6cac74f0398f5a909f3341688d19ea59926c8ef693f",
+                      "lifestream-radio"
+                    ],
+                    [
+                      "0c867c27728c4c1f9273bdc944f6043ebdbb98b7599ae90486549717c06418d6",
+                      "mix/x"
+                    ]
+                  ],
+                  "unset": []
+                }
+              },
+              "next": [],
+              "refs": [],
+              "v": 2,
+              "clock": {
+                "id": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+                "time": 1
+              },
+              "key": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+              "sig": "3045022100f5cf2657de4fceb14033e319428d5d5b3d82e05e5fadbe802d454c5f2c26a8a802204112e8dfbf9b2cc0d875a8feb158c183c2ffef4161e5fbc0e8541ef563197581"
+            }
+          },
+          {
+            "name": "E2",
+            "entry_hash": "zBwWX9xxmJBCHW9iy8X8daY14uogwZGqAmALsxn99eT3UxNSzeA86BNFPNw6hNsF9NYUn1wNeg9RQ2oWdScGeSpf7CNrg",
+            "signed": {
+              "id": "/record/zBwWX6eaeb5ZhToR5AL62215fMiLTZYAtYpnDcBCebF4PJiLWK2n8MnGCArMMZc3nbLvaCGsg51etXpMrdVH5rgd9DUf8/library",
+              "payload": {
+                "op": "PUT",
+                "key": "f228c4f7c920f3062473aeffe3dd70f42f6af466e268b2afd9b63fb8c149e0d6",
+                "value": {
+                  "type": "labels",
+                  "v": 1,
+                  "timestamp": 1700000000001,
+                  "set": [],
+                  "unset": [
+                    [
+                      "cd24f44d2ee1fb5dba99a6cac74f0398f5a909f3341688d19ea59926c8ef693f",
+                      "mix/x"
+                    ]
+                  ]
+                }
+              },
+              "next": [
+                "zBwWX9xHYcyaGijdXW1c7cBGTT1BMX7puKLzv8sxW88xiZEuhk6Jwji8bXpixuFNs5xZUvRV4eEvcHdWh6HLhsNmJX9nT"
+              ],
+              "refs": [],
+              "v": 2,
+              "clock": {
+                "id": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+                "time": 2
+              },
+              "key": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+              "sig": "304402203f4e63eb2a698583d3800dc5af1f28ef3c66280d0f07d5e7db3e501eafdf6e01022079e4b7a1a7e40d2e38df2619c4659846b09d1ecb0a5b3dbe55ccd2ed3a4c51ab"
+            }
+          },
+          {
+            "name": "E3a",
+            "entry_hash": "zBwWX83N6tEvQ2q38PvPhS8LFnzZkatX5REcN2LXMfUVXqqhgJufdPrmVRepZ58ubSJt2kmx4o43yX1gKASKNbLshrJ6d",
+            "signed": {
+              "id": "/record/zBwWX6eaeb5ZhToR5AL62215fMiLTZYAtYpnDcBCebF4PJiLWK2n8MnGCArMMZc3nbLvaCGsg51etXpMrdVH5rgd9DUf8/library",
+              "payload": {
+                "op": "PUT",
+                "key": "9760b282a8c46eec35d64aca23f7089eeb793f81f92af45ad43b84ead3e05852",
+                "value": {
+                  "type": "labels",
+                  "v": 1,
+                  "timestamp": 1700000000002,
+                  "set": [
+                    [
+                      "0c867c27728c4c1f9273bdc944f6043ebdbb98b7599ae90486549717c06418d6",
+                      "y"
+                    ]
+                  ],
+                  "unset": []
+                }
+              },
+              "next": [
+                "zBwWX9xxmJBCHW9iy8X8daY14uogwZGqAmALsxn99eT3UxNSzeA86BNFPNw6hNsF9NYUn1wNeg9RQ2oWdScGeSpf7CNrg"
+              ],
+              "refs": [],
+              "v": 2,
+              "clock": {
+                "id": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+                "time": 3
+              },
+              "key": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+              "sig": "304402202d70288fb9674eb5e2d4354faf9201718162d7cfc3a86eaba971564b1d9b1a69022067f2d7e2d1dcd86b024c4d50e97923260a54b5d9c31fda11ce83767d95f67970"
+            }
+          },
+          {
+            "name": "E3b",
+            "entry_hash": "zBwWX9zXdkL9A69bmJyiJa9hvaG9dWJULCxCGnbb2Z88TzmNs2PAVYS5uohU5gaDYEHxB9LzgoHr8Ljp6mP44eSFS8sJz",
+            "signed": {
+              "id": "/record/zBwWX6eaeb5ZhToR5AL62215fMiLTZYAtYpnDcBCebF4PJiLWK2n8MnGCArMMZc3nbLvaCGsg51etXpMrdVH5rgd9DUf8/library",
+              "payload": {
+                "op": "PUT",
+                "key": "39a57e65ac5a5f19def03c6733ce88bd8afe3affed02cc9ecadd09c5105093d0",
+                "value": {
+                  "type": "labels",
+                  "v": 1,
+                  "timestamp": 1700000000002,
+                  "set": [],
+                  "unset": [
+                    [
+                      "0c867c27728c4c1f9273bdc944f6043ebdbb98b7599ae90486549717c06418d6",
+                      "y"
+                    ]
+                  ]
+                }
+              },
+              "next": [
+                "zBwWX9xxmJBCHW9iy8X8daY14uogwZGqAmALsxn99eT3UxNSzeA86BNFPNw6hNsF9NYUn1wNeg9RQ2oWdScGeSpf7CNrg"
+              ],
+              "refs": [],
+              "v": 2,
+              "clock": {
+                "id": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+                "time": 3
+              },
+              "key": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+              "sig": "3045022100d9636ae7eb10be911448d2bba6b4817ff962bba473b4b6de72fedcd96dcc1e560220717f81832abc7780a1174371ab774bbf1d952fd55f25bbfcab07ccb0554602cc"
+            }
+          },
+          {
+            "name": "E4",
+            "entry_hash": "zBwWX6MHYuh9eJqyyp52fJJs7Qsfjzbc2LEqMQgx4uUWxYwi66Pf3Mjm6Gty7rT14FHPu6UYFXRMMNfLT1uL5YaKZWJKZ",
+            "signed": {
+              "id": "/record/zBwWX6eaeb5ZhToR5AL62215fMiLTZYAtYpnDcBCebF4PJiLWK2n8MnGCArMMZc3nbLvaCGsg51etXpMrdVH5rgd9DUf8/library",
+              "payload": {
+                "op": "DEL",
+                "key": "cd24f44d2ee1fb5dba99a6cac74f0398f5a909f3341688d19ea59926c8ef693f",
+                "value": {
+                  "type": "track",
+                  "timestamp": 1700000000003
+                }
+              },
+              "next": [
+                "zBwWX83N6tEvQ2q38PvPhS8LFnzZkatX5REcN2LXMfUVXqqhgJufdPrmVRepZ58ubSJt2kmx4o43yX1gKASKNbLshrJ6d",
+                "zBwWX9zXdkL9A69bmJyiJa9hvaG9dWJULCxCGnbb2Z88TzmNs2PAVYS5uohU5gaDYEHxB9LzgoHr8Ljp6mP44eSFS8sJz"
+              ],
+              "refs": [],
+              "v": 2,
+              "clock": {
+                "id": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+                "time": 4
+              },
+              "key": "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+              "sig": "304402206fb17f8f2c3c4bd3a9ab8f7cbdcb9f6406a8eef2808981a99c1e8da707407ed802200434cb56b80d1210fe8e4616c7b4644cf74c7596b1181d1d280dcbad1fc2329c"
+            }
+          }
+        ]
+      },
+      "expected": {
+        "label_state": [
+          {
+            "track_id": "0c867c27728c4c1f9273bdc944f6043ebdbb98b7599ae90486549717c06418d6",
+            "label": "mix/x",
+            "applied": true
+          },
+          {
+            "track_id": "0c867c27728c4c1f9273bdc944f6043ebdbb98b7599ae90486549717c06418d6",
+            "label": "y",
+            "applied": true
+          },
+          {
+            "track_id": "cd24f44d2ee1fb5dba99a6cac74f0398f5a909f3341688d19ea59926c8ef693f",
+            "label": "lifestream-radio",
+            "applied": true
+          },
+          {
+            "track_id": "cd24f44d2ee1fb5dba99a6cac74f0398f5a909f3341688d19ea59926c8ef693f",
+            "label": "mix/x",
+            "applied": false
+          }
+        ],
+        "tie_winner": "E3a"
+      }
+    }
+  ]
+}
