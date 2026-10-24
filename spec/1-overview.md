@@ -1,7 +1,7 @@
 # Record Protocol Specification — Overview
 
-**Version**: 1
-**Status**: v1.2.8
+**Version**: 2
+**Status**: v2.0.0
 
 ## 1.1 Introduction
 
@@ -112,16 +112,18 @@ library's access controller names the keys that own it (§3.5).
 
 **Library**: an append-only, signed log of operations identified by
 a library address. Libraries are the unit of access control and
-replication. The protocol defines three library types: `recordstore`
-(tracks, log links, about, capabilities), `listens` (listen history),
-and `identity` (an identity's libraries, links, and pins).
+replication. The protocol defines four library types: `recordstore`
+(tracks, labels, About, capabilities), `labels` (an identity's own
+labels), `listens` (listen history), and `identity` (an identity's
+libraries, links, pins, and profile).
 
 **Identity library**: the `identity`-type library each identity has
 exactly one of, also called the identity meta-log (§4.8). Its
 address depends on the identity key alone (§3.6.2).
 
 **Library discriminator**: the manifest `name`, which tells apart
-the libraries one identity owns (§3.6.1).
+the libraries one identity owns (§3.6.1). It is opaque: a library's
+display name is its About record.
 
 **Capability**: an owner-signed record in a `recordstore` library
 that lets another identity append specific operations to it, until
@@ -141,36 +143,45 @@ library creation and is not mutable in this version.
 
 **Record-entry envelope**: the payload wrapper object (§2.2)
 carrying `{id, timestamp, v: 1, type, content}`. The envelope
-describes a track, log link, or about record. Its `content` field
+describes a track. Its `content` field
 is a CID pointing to the dag-cbor payload stored in the content
 network. "Entry" used alone in sections 2 and 6 refers to this
 structure.
 
 **Signed log entry**: the append-only log object (§4.1) that wraps
-a record-entry envelope inside the DAG. It carries `{v: 2, id,
+a record-entry envelope or an inline record inside the DAG. It carries `{v: 2, id,
 payload, sig, key, identity, hash, next, refs, clock}`. The
 `payload` field contains the PUT/DEL operation (§2.8) which in turn
-contains the record-entry envelope. "Log entry" in sections 4 and 5
-refers to this structure.
+contains the record-entry envelope or inline record. "Log entry" in
+sections 4 and 5 refers to this structure.
 
 The two structures live at different layers:
 
 ```
 signed-log-entry (v:2, §4.1)
   └─ payload: operation {op, key, value}  (§2.8)
-       └─ value: record-entry-envelope (v:1, §2.2)
-            └─ content: CID → dag-cbor payload  (§2.1)
+       ├─ value: record-entry-envelope (v:1, §2.2)
+       │    └─ content: CID → dag-cbor payload  (§2.1)
+       └─ value: inline record (§2.5, §2.6, §3.5.5)
 ```
 
 **Track entry**: a record-entry envelope whose payload carries
 audio metadata, artwork references, and an audio-file CID.
 
-**Log entry (federation link)**: a record-entry envelope
-representing a link from one library to another. Distinct from
-"signed log entry" above and from the generic "entry in a log".
+**Label record**: an inline record in which a library applies or
+removes labels on track ids, held or not (§2.5).
 
-**About entry**: a record-entry envelope describing the owning
-library (display name, bio, location, avatar).
+**About record**: an inline record carrying its library's display
+name (§2.6).
+
+**Labels library**: the `labels`-type library each identity has one
+active of, the home of the identity's own labels (§4.9).
+
+**Profile**: the identity's name, bio, and avatar, a record in its
+identity library (§4.8.2).
+
+**Link**: an identity-library record naming another library to
+replicate (§4.8.4).
 
 **Listen entry**: an operation in the separate listens library
 that records a playback event.
