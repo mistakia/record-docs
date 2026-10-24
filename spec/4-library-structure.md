@@ -195,8 +195,9 @@ library dispatches by record type (§4.8.2).
 
 ### 4.4.2 Current-state resolution
 
-For any given `(library_address, key)` tuple, where the key is a
-track id or the About key, the "current" entry among a set of signed
+For any given `(library_address, type, key)` tuple, where the type is
+`track` with a track id as key, or `about` with the About key, the
+"current" entry among a set of signed
 log entries is defined by sorting the set by the three-element key
 
 ```

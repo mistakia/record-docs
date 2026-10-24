@@ -660,7 +660,7 @@ W (write under C): zBwWX9PQytHs1BvwyY41t41aqM2eG5qDyHJBcF4whar1Txj1iH2VpRDoPiuVD
 R (revokes C):     zBwWX5Pjot9No4iFvojbv2EpRP4up8DzUgpwuH8TmiKrEpGBgxJxZ7CvbTBt7cmfN1DH9pZQE3Bm7NCKTToPMoT91Frd6
 ```
 
-The script checks 341 verdicts, 257 of them the fan-out spam below. They cover:
+The script checks 345 verdicts, 257 of them the fan-out spam below. They cover:
 
 | Case | Verdict |
 | ---- | ------- |
@@ -678,6 +678,7 @@ The script checks 341 verdicts, 257 of them the fan-out spam below. They cover:
 | an owner label record with a mismatched key, a pair in both `set` and `unset`, no pairs, a label not in NFC, with a control character, or over 128 bytes, or an uppercase track id; an About record with a `bio` | reject: malformed |
 | in a labels library: an owner label record and About PUT; an owner Track PUT and DEL; a grantee label record | accept; reject: not admitted (§2.8); reject: §3.5.4 |
 | an owner DEL of an About record | reject: §2.8.2 |
+| an owner version 1 About envelope and Log DEL; an owner PUT of an undefined record type; a grantee's version 1 About envelope | accept, no effect (§2.8.4, §4.4.1); reject: malformed |
 | a delegated grant within the delegator's actions, and a write under it | accept |
 | a write under a delegated grant the delegator's capability does not cover | reject: up the chain |
 | under a grant from a delegator filtered to `mix/`: an unset of a `mix/` label, and a set of `other` | accept; reject: up the chain |

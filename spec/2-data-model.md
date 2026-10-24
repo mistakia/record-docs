@@ -59,7 +59,8 @@ Requirements:
 - `timestamp` MUST be the creation time in milliseconds since the Unix
   epoch (UTC). Implementations MUST NOT use any other unit.
 - `v` MUST be `1` for this version of the protocol.
-- `type` MUST be exactly `"track"` (lowercase).
+- `type` MUST be exactly `"track"` (lowercase). Envelopes of other
+  types written by version 1 are read per §2.8.4.
 - `content` MUST be the base58btc-encoded CID of the payload object as
   described in §2.1.
 
@@ -282,7 +283,9 @@ whose value is
   replaces the earlier one under §4.4.2 order.
 - An About record is valid in a `recordstore` library and a `labels`
   library. It is never deleted.
-- A receiver MUST reject an About record that breaks this shape.
+- A receiver MUST reject an About record that breaks this shape. A
+  version 1 About envelope, which carries `content`, is not an About
+  record (§2.8.4).
 
 The name describes the library, not the person who owns it. A
 person's name, bio and avatar are their profile, in the identity
@@ -353,7 +356,7 @@ Requirements:
 - A received `DEL` in a `recordstore` library with any other
   `value.type`, and any `DEL` in a `labels` library, MUST be rejected
   at the append-verification step (§3.5.4, §4.5) and MUST NOT be added
-  to the local oplog.
+  to the local oplog, except as §2.8.4 provides.
 - In a `listens`-type library (§2.7) the only valid operation shape is
   a listen-entry write; `DEL` operations MUST be rejected by both the
   writer (on local append) and any replicating peer (on remote merge).
@@ -376,6 +379,24 @@ layer is sized for; the payload and label bounds bound the
 per-entry decode and indexing cost so a hostile writer cannot
 inflate a single library's replication or query-index footprint
 beyond the worst case implementations are required to handle.
+
+### 2.8.4 Version 1 entries
+
+A library keeps its history across protocol versions, so a receiver
+reads the entries version 1 wrote. In a `recordstore` library, an
+entry signed by a `write`-list key MUST be merged with no state effect
+when it is one of:
+
+- a PUT whose value is a version 1 envelope (`id`, `timestamp`, `v`,
+  `type`, `content`) of type `"log"` or `"about"`;
+- a DEL whose `value.type` is `"log"`.
+
+Such an entry still counts toward heads (§4.3), so the entries after
+it merge as usual. A version 1 Track envelope is a Track envelope:
+its `tags` extra is ignored like any unknown extra (§2.2). Version 1
+links and names are carried forward by writing a `link` record
+(§4.8.4) and an About record (§2.6); nothing reads them from these
+entries.
 
 ## 2.9 Pinning obligations
 

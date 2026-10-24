@@ -187,6 +187,9 @@ const about_shape = (r) =>
     ? 'ok'
     : 'malformed'
 
+const is_v1_envelope = (v) => is_map(v) && ['log', 'about'].includes(v.type) && typeof v.content === 'string' &&
+  typeof v.id === 'string' && v.v === 1 && is_uint(v.timestamp)
+
 // §2.8.1: what a PUT value may be, per library type.
 const ADMITTED = {
   recordstore: ['track', 'labels', 'about', 'capability', 'revocation'],
@@ -299,7 +302,12 @@ const verify = (hash) => {
   if (entry.next.length > 256 || entry.refs.length > 256) return 'fan-out'
   const library_type = LIBRARY_TYPE.get(entry.id)
   if ('capability_id' in payload && library_type !== 'recordstore') return 'capability_id outside recordstore'
-  if (ADMITTED[library_type] && payload.op === 'PUT' && !ADMITTED[library_type].includes(payload.value?.type)) return 'not admitted'
+  // §2.8.4: a version 1 Log or About envelope, or a Log DEL, from a write-list key merges with no effect.
+  const v1_entry = library_type === 'recordstore' && is_owner(entry.key) &&
+    (payload.op === 'DEL' ? payload.value?.type === 'log' : is_v1_envelope(payload.value))
+  if (v1_entry) return null
+  // §4.4.1: an undefined PUT type in a recordstore from a write-list key merges with no effect.
+  if (library_type === 'labels' && payload.op === 'PUT' && !ADMITTED.labels.includes(payload.value?.type)) return 'not admitted'
   if (ADMITTED[library_type] && payload.op === 'DEL' && (library_type !== 'recordstore' || payload.value?.type !== 'track')) return 'not admitted'
   if (record_malformed(payload)) return 'malformed'
   if (is_owner(entry.key)) return null
@@ -485,6 +493,14 @@ expect(append('owner DEL, labels library', {
 expect(append('owner DEL of an About record', {
   k: 1, op: 'DEL', key: ABOUT_KEY, value: { type: 'about', timestamp: T0 + 35 }
 }), 'reject: not admitted')
+// §2.8.4 version 1 entries, and §4.4.1 undefined types.
+const V1_ABOUT = { id: sha256_hex(LIBRARY), timestamp: T0 + 37, v: 1, type: 'about', content: TRACK_CONTENT }
+expect(append('owner version 1 About envelope', { k: 1, key: V1_ABOUT.id, value: V1_ABOUT }), 'accept')
+expect(append('owner version 1 Log DEL', { k: 1, op: 'DEL', key: sha256_hex('linked'), value: { type: 'log', timestamp: T0 + 38 } }), 'accept')
+expect(append('owner PUT of an undefined record type', { k: 1, value: { type: 'playlist', v: 1, timestamp: T0 + 39 } }), 'accept')
+expect(append('k=2 version 1 About envelope under T', {
+  k: 2, next: [T], key: V1_ABOUT.id, capability_id: T, value: { ...V1_ABOUT, timestamp: T0 + 40 }
+}), 'reject: malformed')
 expect(append('label record by k=2, labels library', {
   k: 2, library: LABELS, value: labels(T0 + 36, [[TRACK_A, 'a']])
 }), 'reject: not in write list')
