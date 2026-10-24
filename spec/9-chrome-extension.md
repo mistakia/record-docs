@@ -1,7 +1,7 @@
 # Record Protocol Specification — Chrome Extension
 
-**Version**: 1.3
-**Status**: v1.3.0-draft
+**Version**: 1.4
+**Status**: v1.4.0-draft
 
 This chapter specifies the **chrome extension** — a minimal browser-extension
 client whose single job is one-click ingest of a URL from any web page into
@@ -128,9 +128,10 @@ A single options page exposes:
 - Node URL configuration with format validation.
 - Bearer-token configuration.
 - The write target: one of the identity's own, non-retired `recordstore`
-  libraries from `GET /libraries`. A node with more than one refuses an
-  import that names none, so the extension MUST NOT import until one is
-  chosen.
+  libraries from `GET /libraries`, each shown by its About name (§2.6),
+  never by its address discriminator. A node with more than one refuses
+  an import that names none, so the extension MUST NOT import until one
+  is chosen.
 - "Test Connection" action.
 - Last-known connection status.
 - Documentation of the at-rest-token limitation (§9.6).

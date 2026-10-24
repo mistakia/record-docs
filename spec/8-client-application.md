@@ -1,7 +1,7 @@
 # Record Protocol Specification — Desktop Application
 
-**Version**: 1
-**Status**: v1.0.0-draft
+**Version**: 2
+**Status**: v2.0.0-draft
 
 This chapter specifies the **desktop application** — a client that consumes a
 node's HTTP/WS API to provide a headed, interactive music-library experience.
@@ -455,6 +455,9 @@ The application's identity surface shows:
 - A truncated form for inline display (first 6 + last 6 of the hex).
 - The current node's URL (so the user distinguishes bundled from remote at
   a glance).
+- The identity's profile (§4.8.2): its name and avatar, with a key
+  handle derived from the public key shown while no name is set. The
+  profile names the person; no library's About name stands in for it.
 - The set of own libraries owned by this identity (§4.8.3).
 - Last-known export action timestamp.
 - A **key-holder indicator**: in bundled mode displays "this device"; in
@@ -476,6 +479,11 @@ The application surfaces three categories of library:
 - **Linked libraries.** Libraries followed without any held capability.
   Read-only.
 
+The identity's `listens` and `labels` libraries (§4.8.3, §4.9) are own
+libraries but not places a person browses: the application shows the
+labels library's labels on tracks wherever they appear, and the listens
+library as listen history, rather than listing either among libraries.
+
 The application MUST surface the category of every visible library and, for
 shared libraries, MUST surface the scope of held capabilities (which actions,
 any active filters, any expiration). The user MUST be able to tell at a
@@ -489,8 +497,11 @@ The application reads from the node:
   with pagination, filter, sort, and search parameters.
 - Track detail — full metadata for a single track, including all libraries
   that hold it.
-- Tag taxonomy across visible libraries.
-- Per-library `about` metadata.
+- Label taxonomy, counted from the libraries whose labels apply
+  (`label_libraries`, chapter 7), which by default are every own
+  library plus the libraries in view.
+- Per-library About names (§2.6), and the profiles of library owners
+  (§5.3.2).
 - Per-library replication state (entries loaded vs total, connection state).
 - Listen history scoped to own libraries.
 - Peer presence and per-peer libraries.
@@ -517,9 +528,10 @@ Write categories:
 
 - Add a track via ingest (`/import/file`, `/import/url`).
 - Remove a track from an own library.
-- Add or remove a tag.
+- Add or remove a label, on any track, held or not (§2.5).
 - Adopt a track from another library into a writable library.
-- Edit per-library `about`.
+- Rename a library (its About record, §2.6).
+- Edit the identity's profile (writes to identity meta-log).
 - Link or unlink a library (writes the link entry to the identity meta-log).
 - Connect or disconnect replication of a linked library.
 - Record a listen.
@@ -530,11 +542,21 @@ Write categories:
 libraries MUST expose a target-library selector. The default is
 implementation-defined; recommended: most-recently-active writable library.
 
+**Labels.** A label the user applies lands in the identity's labels
+library (§4.9) by default, so it is the person's own and appears in every
+view. Inside a co-managed shared library, the label control offers two
+targets, `just me` (the labels library) and `shared` (that library, under
+`library.write_label`), and defaults to `just me`. Removal is offered
+wherever a write is authorised: an own library, or a shared library whose
+capability covers the label (§3.5.6). A label held in a node-managed
+library (chapter 7 `TagCount.managed`) is shown read-only.
+
 **Listens.** Listens land in the identity's listens library (§4.8.3), which
 takes no write target. Listens MUST NOT be written to shared libraries.
 
 **Identity meta-log writes.** Creating a new own library, retiring an own
-library, linking, unlinking, and pinning are identity-meta-log writes
+library, linking, unlinking, pinning, and editing the profile are
+identity-meta-log writes
 (§4.8). These are owner-implicit and require no capability.
 
 Chapter 7 states how a write names its target and capability, and which
@@ -665,6 +687,14 @@ Aggregated views MUST surface, per track, which libraries contributed the
 track and at which categories (e.g. "in 2 own libraries, 1 shared, 3
 linked").
 
+Membership and labels are separate scopes. A view passes the libraries
+whose tracks it shows as membership, and leaves the libraries whose labels
+count to the node's default (own libraries plus those in view) unless the
+user narrows it. A label filter in a single library's view therefore
+counts the person's own labels on that library's tracks, wherever those
+labels are held. Clicking a label on a track filters the current view by
+it; it never navigates to another library.
+
 Adoption affordances:
 
 - "Adopt to own library X" — copy the track entry into a specific own
@@ -703,15 +733,20 @@ default to a single target when the user has multiple writable libraries.
   MUST be rejected by the local node and surfaced as "the capability
   authorizing this action has expired."
 
-### 8.6.9 Scope of tags and listens
+### 8.6.9 Scope of labels, listens, names and profiles
 
-- **Tags** are per-library: a tag is an association between a track and a
-  tag name within a specific library's log. Aggregated tag views merge by
-  tag name across libraries.
-- **Listens** are per-identity (logged into a designated own library), not
+- **Labels** are label records (§2.5): any recordstore or labels library
+  may label any track id, held or not. The person's own labels live in
+  their labels library; a shared curation is a co-managed recordstore.
+  Aggregated label views merge by label text across the counted
+  libraries.
+- **Listens** are per-identity (logged into the listens library), not
   per-library.
-- **`about` metadata** is per-library: each own library has its own name,
-  bio, avatar.
+- **Library names** are per-library: the About record (§2.6) carries a
+  name and nothing else. A library's address discriminator is never shown
+  as its name; an unnamed library shows `Library · …` and the tail of its
+  address.
+- **Profiles** are per-identity (§4.8.2): name, bio, avatar.
 
 ## 8.7 Networking and authentication
 
@@ -905,9 +940,10 @@ reconnect. The snapshot lets the application render last-known UI within
 **Contents.** The snapshot holds the minimum state needed to render the
 application's primary surfaces:
 
-- Linked-library list and per-library `about` metadata.
+- Linked-library list, per-library About names, and the identity's
+  profile.
 - For the most-recently-active library: the first page of tracks (ID,
-  title, artist, duration, tag IDs, library address).
+  title, artist, duration, labels, library address).
 - Current playback queue and position.
 - Last-visited route/page identity.
 - Per-library last-known head hash, used for reconciliation (§8.8.5).
@@ -933,8 +969,8 @@ surface.
 - Allowed range: 0MB (snapshot disabled; cold launch renders blank until
   first node query) through 1GB.
 - The application MUST evict snapshot content via an LRU or similar policy
-  if writes would exceed the configured upper bound. The linked-library list
-  and per-library `about` metadata MUST NOT be evicted; pagination content
+  if writes would exceed the configured upper bound. The linked-library list,
+  the About names and the profile MUST NOT be evicted; pagination content
   MAY be evicted.
 - The application MUST surface the current snapshot size alongside the
   configured limit.
@@ -1030,7 +1066,7 @@ The following capabilities MUST be present in any v1-conformant
 implementation.
 
 - **Library browsing.** Aggregated and per-library track views with
-  pagination, sort, and basic filter (by library, by tag).
+  pagination, sort, and basic filter (by library, by label).
 - **Search.** Full-text search via the node's query API with
   search-as-you-type or equivalent debounced UX.
 - **Playback.** Play, pause, next, previous, seek, volume, queue management
@@ -1040,7 +1076,8 @@ implementation.
 - **OS media integration.** macOS Media Session API integration: lock-screen
   and Control Center metadata, play/pause/next/previous from system controls
   and keyboard media keys.
-- **Tagging.** Add and remove tags on tracks in writable libraries.
+- **Labelling.** Add and remove labels on any track, with the targets of
+  §8.6.3.
 - **Ingest.** File import (drag-and-drop and file picker) and URL import,
   with real-time per-item ingest progress via WebSocket events. An import
   that finishes while the window is not in front, whichever client started
@@ -1049,7 +1086,8 @@ implementation.
 - **Identity management.** Display pubkey, list of owned libraries, list of
   capabilities held and granted. Export and import private key with §8.5.3
   / §8.5.4 affordances. First-launch backup prompt.
-- **Own-library management.** Create, edit `about`, retire.
+- **Own-library management.** Create (asking only a name), rename,
+  retire.
 - **Library linking.** Link, unlink, view linked libraries with replication
   state. Connect / disconnect.
 - **Replication-policy editor.** Per-library mode selection
@@ -1064,7 +1102,9 @@ implementation.
   writable library.
 - **Listen recording.** Background recording after a configurable threshold
   (recommended 60s). Listen history view.
-- **Profile editing.** Per own library: edit `about` (name, bio, avatar).
+- **Profile editing.** Edit the identity's profile (name, bio, avatar).
+  A bundled node's first launch asks the person's name and writes it to
+  the profile.
 - **Connection settings.** Mode selector, URL input, bearer-token input,
   test-connection, save/cancel per §8.3.5.
 - **Storage controls.** Hibernation-snapshot budget, visible cache size,
@@ -1083,7 +1123,7 @@ implementation.
 - Equalizer or DSP effects.
 - Visualizations beyond static cover art.
 - Lyrics display.
-- **Named playlists.** Tags fill the playlist role across the system.
+- **Named playlists.** Labels fill the playlist role across the system.
 - Direct peer-to-peer connections from the application.
 - Content discovery beyond the user's linked graph.
 - Mobile or browser variants.
@@ -1113,8 +1153,8 @@ The application defends against:
    system actions.
 2. **Untrusted-origin navigation.** Renderer attempts to navigate away from
    the bundled HTML MUST be blocked or redirected to the OS browser.
-3. **Untrusted-content rendering.** Library `about` fields, peer-provided
-   track metadata, and any data ultimately sourced from a remote peer is
+3. **Untrusted-content rendering.** Library names, profile fields,
+   peer-provided track metadata, and any data ultimately sourced from a remote peer is
    treated as untrusted input. The renderer MUST NOT interpret it as code.
 4. **Capability-token exfiltration.** Bearer tokens and exported private
    keys MUST NOT be exfiltratable via renderer-side compromise.
@@ -1204,9 +1244,10 @@ Every `BrowserWindow` MUST register:
 
 ### 8.10.6 Untrusted-content rendering
 
-- Library `about` text, track metadata, tag names, and any text from a peer
-  MUST be rendered as plain text by default. No HTML interpretation.
-- If Markdown rendering is desired for `about`, the implementation MUST use
+- Library names, profile text, track metadata, label names, and any text
+  from a peer MUST be rendered as plain text by default. No HTML
+  interpretation.
+- If Markdown rendering is desired for a profile bio, the implementation MUST use
   a sanitizing renderer with an explicit tag and attribute allowlist. No
   raw HTML passthrough.
 - Image URLs in user-content fields MUST be validated against the
@@ -1297,7 +1338,7 @@ The application MUST remain functional and usable at:
 - Linked library count: up to 50 libraries.
 - Aggregated corpus: up to 500,000 unique track entries across own + shared
   + linked.
-- Tag taxonomy: up to 10,000 distinct tags.
+- Label taxonomy: up to 10,000 distinct labels.
 - Listen history: up to 1,000,000 listen events.
 
 These are floor targets. Higher scales are not guaranteed.
@@ -1339,7 +1380,7 @@ best-effort with the warning surface of §8.7.4.
 | Stale → fresh reconciliation visible | ≤500ms after node ready | ≤1s |
 | Track-list scroll (per-frame render) | ≤16ms | ≤16ms |
 | Search results update after keystroke (debounced) | ≤150ms | ≤200ms |
-| Tag filter toggle | ≤100ms | ≤150ms |
+| Label filter toggle | ≤100ms | ≤150ms |
 | Library tab switch | ≤100ms | ≤150ms |
 | Track click → first audio sample | ≤500ms | ≤800ms |
 | Gapless transition | sample-accurate; no audible gap | same |

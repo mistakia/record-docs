@@ -1,7 +1,7 @@
 # Record Protocol Specification — iOS Application
 
-**Version**: 1
-**Status**: v1.0.0-draft
+**Version**: 2
+**Status**: v2.0.0-draft
 
 This chapter specifies the **iOS application**: a native iPhone client that
 consumes a node's HTTP/WS API for browsing, playing and lightly curating a
@@ -20,8 +20,8 @@ the iOS application's behavior against a node.
 
 1. Let the user browse, search, filter and play their libraries from an
    iPhone, with lock-screen and Control Center playback.
-2. Let the user curate lightly: tag, adopt, pin and remove tracks, link a
-   library, edit an own library's profile, and import audio files and URLs.
+2. Let the user curate lightly: label, adopt, pin and remove tracks, link a
+   library, edit the identity's profile, and import audio files and URLs.
 3. Be a pure HTTP/WS client of one node at a time, as §8.1.1 item 4 requires
    of the desktop application.
 4. Stay responsive at the library scales of §8.11.1 on a phone.
@@ -60,7 +60,8 @@ These obligations of chapter 8 apply as written:
 
 - the library categories, reads and writes, the write targets and the
   consistency model (§8.6.1, §8.6.2, §8.6.3, §8.6.7, §8.6.8);
-- the scope of tags and listens (§8.6.9);
+- the scope of labels, listens, names and profiles (§8.6.9), and the
+  label write targets of §8.6.3;
 - authentication, the endpoint surface consumed, the WebSocket lifecycle and
   connection recovery (§8.7.3, §8.7.6, §8.7.7, §8.7.8);
 - the reconciliation pass and its write gate (§8.8.5);
@@ -95,7 +96,7 @@ These obligations of chapter 8 apply as written:
   pressed state while held.
 - A tap on a track row plays from that row. Swipe right plays the track next
   and swipe left adds it to the queue. A long press opens the full menu: play,
-  play next, add to queue, add tag, adopt, pin or unpin, remove from library,
+  play next, add to queue, add label, adopt, pin or unpin, remove from library,
   details, and copy the content CID.
 - The application MUST route taps, the lock screen, Control Center and
   headset commands through one playback controller, so every source acts on
