@@ -61,9 +61,6 @@ this chapter governs client behavior against a node.
    own libraries and libraries the user has explicitly linked; it does not
    provide global search, recommendations, or any feature requiring
    participation beyond the user's own peer graph.
-7. **Shared libraries with multiple writers are deferred to v1.1.** The
-   protocol's capability primitive (§3.5.5) enables shared write; v1 of this
-   chapter assumes that primitive but the UX may land in v1.1.
 
 ## 8.2 Application surface and packaging
 
@@ -565,7 +562,7 @@ target applies when the application omits one.
 ### 8.6.4 Capability management
 
 Capabilities, their action vocabulary, conditions, verification, and
-revocation are normative in §3.5.5–§3.5.11. This section states the
+revocation are normative in §3.5.5–§3.5.10. This section states the
 application's obligations only.
 
 The application provides a capability management surface accessible from
@@ -859,7 +856,7 @@ makes every node request on the renderer's behalf (§8.10.7).
 
 The application consumes the HTTP/WS API defined in protocol §7
 (`7-http-api.yaml`, v1.8.1). Its multi-library, capability, and replication
-endpoints implement §3.5.5–§3.5.11, §4.6, and §4.8. No subset; no additional
+endpoints implement §3.5.5–§3.5.10, §4.6, and §4.8. No subset; no additional
 endpoints beyond the spec. Artwork and avatars are fetched through
 `/images/{cid}`: the main process fetches the bytes and hands the renderer
 data, so the renderer CSP `img-src 'self' data:` holds.

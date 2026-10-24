@@ -10,8 +10,8 @@
  *       values in fixtures/README.md `## Toolchain pinning`.
  *   (b) Regenerate the chirp from pinned ffmpeg flags into a temp
  *       file, byte-compare against the committed audio/chirp-10s.flac,
- *       abort if drift. v1.1 replaced the v1.0 440 Hz sine, whose
- *       fingerprint is one repeated value and so degenerate (§6.1.6).
+ *       abort if drift. A 440 Hz sine would not do: its fingerprint
+ *       is one repeated value and so degenerate (§6.1.6).
  *   (c) fpcalc -json -algorithm 2 → fingerprint string, checked
  *       non-degenerate → sha256(fingerprint) = track_id
  *       → ffmpeg tag-strip (§6.2.3 reference flags) → sha256 of tag-

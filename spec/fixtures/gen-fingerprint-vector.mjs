@@ -9,9 +9,9 @@
  *   1. the silence fingerprint: what fpcalc -json -algorithm 2 emits for a
  *      silent first 120 s; 172 files of the canonical library share it
  *      (track id b8702767...) — degenerate, a reject case
- *   2. the v1.0 §6.1.5 sine — also degenerate: a steady tone fingerprints
- *      to one repeated value, like silence; v1.1 replaced it
- *   2b. the v1.1 §6.1.5 chirp — not degenerate
+ *   2. the §6.1.5 sine — also degenerate: a steady tone fingerprints
+ *      to one repeated value, like silence
+ *   2b. the §6.1.5 chirp — not degenerate
  *   3. a commercial demo track (Pioneer DJ "Demo Track 1", bundled with
  *      rekordbox), fingerprinted with fpcalc 1.6.1 — not degenerate
  *   4. the threshold pair: 19 of 20 values equal (degenerate) and 18 of
@@ -137,8 +137,8 @@ const equal_of_20 = (k) => [...Array(k).fill(SILENCE_VALUE), ...Array.from({ len
 
 const cases = [
   { label: 'silence (track id b8702767...)', fingerprint: SILENCE_FINGERPRINT, expected: true },
-  { label: 'v1.0 §6.1.5 sine', fingerprint: F7_FINGERPRINT, expected: true },
-  { label: 'v1.1 §6.1.5 chirp', fingerprint: CHIRP_FINGERPRINT, expected: false },
+  { label: '§6.1.5 sine', fingerprint: F7_FINGERPRINT, expected: true },
+  { label: '§6.1.5 chirp', fingerprint: CHIRP_FINGERPRINT, expected: false },
   { label: 'demo track (music)', fingerprint: MUSIC_FINGERPRINT, expected: false },
   { label: '19 of 20 values equal', fingerprint: encode_fingerprint(equal_of_20(19)), expected: true },
   { label: '18 of 20 values equal', fingerprint: encode_fingerprint(equal_of_20(18)), expected: false }
@@ -154,7 +154,7 @@ const check = (label, ok) => {
 const f7 = decode_fingerprint(F7_FINGERPRINT)
 console.log('F7 decodes to algorithm byte ' + f7.algorithm + ', ' + f7.values.length + ' values, first ' + f7.values[0])
 check('encoder reproduces the F7 string from its decoded values', encode_fingerprint(f7.values, f7.algorithm) === F7_FINGERPRINT)
-check('v1.0 sine track id is unchanged', sha256_hex(F7_FINGERPRINT) === F7_TRACK_ID)
+check('sine track id is unchanged', sha256_hex(F7_FINGERPRINT) === F7_TRACK_ID)
 check('chirp track id matches §6.1.5', sha256_hex(CHIRP_FINGERPRINT) === CHIRP_TRACK_ID)
 check('silence fingerprint hashes to track id b8702767...', sha256_hex(SILENCE_FINGERPRINT) === SILENCE_TRACK_ID)
 for (const [label, fp] of [['silence', SILENCE_FINGERPRINT], ['demo track', MUSIC_FINGERPRINT], ['chirp', CHIRP_FINGERPRINT]]) {

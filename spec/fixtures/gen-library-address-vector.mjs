@@ -5,11 +5,12 @@
  *
  * Derives /record/<manifest-cid>/<discriminator> from (K, library type,
  * discriminator) through the §3.5.1 chain, for:
- *   1. (K, recordstore, "library")  — must equal the F3 address, proving
- *      the v1.1 derivation leaves the v1.0 address unchanged
- *   2. (K, listens, "listens")      — the v1.0 listens library
- *   3. (K, recordstore, "mixes")    — a second own library (new in v1.1)
+ *   1. (K, recordstore, "library")  — must equal the F3 address
+ *   2. (K, listens, "listens")      — the listens library
+ *   3. (K, recordstore, <random>)   — a second own library, with a §3.6.1
+ *      random discriminator
  *   4. (K, identity, "identity")    — the identity library (§3.6.2)
+ *   5. (K, labels, "labels")        — the labels library (§4.9)
  *
  * K is the F0 test-only pubkey.
  */
