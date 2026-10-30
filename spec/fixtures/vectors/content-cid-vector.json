@@ -1,4 +1,5 @@
 {
+  "base-secret-scan": "declared-fixture",
   "fixture_id": "F1",
   "generator": "gen-content-cid-vector.mjs",
   "description": "Content CID (§2.3.1): dag-cbor, sha3-512, CIDv1 dag-cbor codec, base58btc.",

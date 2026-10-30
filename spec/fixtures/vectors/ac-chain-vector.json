@@ -1,4 +1,5 @@
 {
+  "base-secret-scan": "declared-fixture",
   "fixture_id": "F3",
   "generator": "gen-ac-chain-vector.mjs",
   "description": "Access-control chain (§3.5.1) and library address (§3.6): write list, static wrapper, manifest.",

@@ -1,4 +1,5 @@
 {
+  "base-secret-scan": "declared-fixture",
   "fixture_id": "F0, F4",
   "generator": "gen-signing-vector.mjs",
   "description": "Entry signing (§3.4.5): ECDSA secp256k1 over sha256(dag-cbor(unsigned)) with the signer prehashing again, low-S DER; signed-entry and child-entry hashes (§4.1.1, §4.1.2).",

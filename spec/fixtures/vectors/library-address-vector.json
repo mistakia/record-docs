@@ -1,4 +1,5 @@
 {
+  "base-secret-scan": "declared-fixture",
   "fixture_id": "F8",
   "generator": "gen-library-address-vector.mjs",
   "description": "Library address derivation (§3.6.1, §3.6.2) from (key, library type, discriminator).",

@@ -45,7 +45,7 @@ Eight generators also write their cases to `vectors/<generator-name>.json`, so a
 | `vectors/label-vector.json` | F12 | label records and per-pair label state |
 | `vectors/unixfs-vector.json` | F7 multi-block step | 2 MiB plus 1 byte import with its leaf CIDs and root block |
 
-Each file is `{fixture_id, generator, description, cases: [{name, inputs, expected}]}`. Bytes are lowercase hex. Protocol objects are plain JSON: an integer-valued number encodes as a CBOR integer and any other number as a CBOR float, as `@ipld/dag-cbor` does for JavaScript numbers. The spec text stays normative. `gen-unixfs-vector.mjs` repeats F7's multi-block step without ffmpeg or fpcalc, so the UnixFS profile can be checked on any machine; its leaf CIDs and root block are diagnostics that the spec does not print.
+Each file is `{"base-secret-scan", fixture_id, generator, description, cases: [{name, inputs, expected}]}`; the first member declares the file a synthetic corpus to the base secret detector, since signing cases carry a private-key input. Bytes are lowercase hex. Protocol objects are plain JSON: an integer-valued number encodes as a CBOR integer and any other number as a CBOR float, as `@ipld/dag-cbor` does for JavaScript numbers. The spec text stays normative. `gen-unixfs-vector.mjs` repeats F7's multi-block step without ffmpeg or fpcalc, so the UnixFS profile can be checked on any machine; its leaf CIDs and root block are diagnostics that the spec does not print.
 
 ## Fixture index
 

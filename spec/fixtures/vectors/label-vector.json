@@ -1,4 +1,5 @@
 {
+  "base-secret-scan": "declared-fixture",
   "fixture_id": "F12",
   "generator": "gen-label-vector.mjs",
   "description": "Label records (§2.5): operation keys, and per-pair current state under §4.4.2.",

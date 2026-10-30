@@ -1,4 +1,5 @@
 {
+  "base-secret-scan": "declared-fixture",
   "fixture_id": "F2",
   "generator": "gen-envelope-vector.mjs",
   "description": "The track envelope (§2.2): payload content CID and envelope bytes, envelope id the sha256 hex of id_source; and the inline About record (§2.6) with its operation key.",
