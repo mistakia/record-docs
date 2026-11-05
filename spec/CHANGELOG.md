@@ -1,5 +1,13 @@
 # Record Protocol Specification — Changelog
 
+## v2.1.0 — 2026-11-05
+
+Client addition, no protocol, API, or vector change, per task user:task/record/improve-record-ios-connect-flow-and-milestone-2-ui.md. Chapter 8 is version 2.1 and chapter 10 version 2.1.
+
+- **Connect URI (§8.7.9).** `record://connect?node_url=<url>&node_token=<token>` carries a node URL and an optional token, for a QR code or a link from another app. A link from outside the client is confirmed first, and the current connection stays until the new node answers. A node's token-management surface may print a token as this link.
+- **Discovery on the local network (§8.7.10).** A node may advertise `_record-api._tcp` with TXT `node_url` and `peer_id`. A client refuses a discovered node whose `/settings` `peer_id` differs, and never sends a token to a discovered URL: such a node takes its token only from a connect URI, and a pasted token goes only to a typed URL.
+- **iOS (§10.3.3).** Connecting offers scan, the local-network list, and a typed address, and Settings offers Change node.
+
 ## v2.0.0 — 2026-10-24
 
 Major version, per task user:task/record/separate-record-labels-from-tracks.md. Labels become records of their own, the person gets a profile, and library names become opaque. v1 peers cannot connect to v2 peers, and every v1.0 and v1.1 compatibility rule is removed.
