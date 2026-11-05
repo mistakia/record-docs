@@ -1,7 +1,7 @@
 # Record Protocol Specification — iOS Application
 
-**Version**: 2
-**Status**: v2.0.0-draft
+**Version**: 2.1
+**Status**: v2.1.0-draft
 
 This chapter specifies the **iOS application**: a native iPhone client that
 consumes a node's HTTP/WS API for browsing, playing and lightly curating a
@@ -89,6 +89,14 @@ These obligations of chapter 8 apply as written:
 - A 401 on REST or on the WebSocket upgrade deletes the token and shows that
   the token was refused (§8.7.3). Settings MUST offer an explicit log-out,
   which deletes the token.
+- Connecting offers, in order, scanning a node's QR code (a connect URI,
+  §8.7.9), the nodes discovered on the local network (§8.7.10), and typing the
+  node URL. A connect URI opened from the Camera app or any other app asks for
+  confirmation first. Settings offers Change node, which keeps the current
+  connection until the new node answers.
+- A token reaches only a node URL that was typed or scanned, never a
+  discovered one, and a pasted token only a typed one (§8.7.10). The
+  application keeps how it learned the node URL beside the URL.
 
 ## 10.4 Touch and remote-command model
 

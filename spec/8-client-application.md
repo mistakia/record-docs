@@ -1,7 +1,7 @@
 # Record Protocol Specification — Desktop Application
 
-**Version**: 2
-**Status**: v2.0.0-draft
+**Version**: 2.1
+**Status**: v2.1.0-draft
 
 This chapter specifies the **desktop application** — a client that consumes a
 node's HTTP/WS API to provide a headed, interactive music-library experience.
@@ -895,6 +895,57 @@ When the node is unreachable:
 - The application MUST NOT serve library data from its hibernation snapshot
   as a fallback. The snapshot may render last-known state visually but MUST
   be marked stale per §8.8.3.
+
+### 8.7.9 Connect URI
+
+A remote-mode node's operator can hand a client the node URL and a token
+together, as a link a client scans from a QR code or opens from another app:
+
+```
+record://connect?node_url=<node URL>&node_token=<token>
+```
+
+- `node_url` is the node URL of §8.7.2, percent-encoded. `node_token` is a
+  token of §8.7.3, percent-encoded, and is optional: without it the link
+  names a node that needs none, or one whose token the client asks for.
+- A client MUST refuse a link whose scheme is not `record`, whose host is not
+  `connect`, that carries a path or fragment, that carries any other
+  parameter or either one twice, or whose `node_url` it would refuse as typed.
+  Other hosts under `record://` are reserved for other acts, such as pairing.
+- A client MUST ask for confirmation, naming the node's host, before it
+  connects to a link that arrived from outside it: any app or page can open a
+  `record://` link. A code the client's own scanner read, which the user chose
+  to scan, needs none.
+- Connecting to a link keeps the current connection until the new node answers
+  its test; a refused link changes nothing.
+- The node's token-management surface (§8.7.3) MAY print an issued token as
+  this link, so the operator renders it as a QR code and the token never has
+  to be typed.
+
+### 8.7.10 Discovery on the local network
+
+A remote-mode node MAY advertise its node URL on its local network with
+DNS-SD over multicast DNS (RFC 6762, RFC 6763), so a client on the same
+network lists it without an address being typed.
+
+- The service type is `_record-api._tcp`. The instance name is the node
+  host's name.
+- The TXT record carries `node_url`, the node URL a client calls, and
+  `peer_id`, the node's `GET /settings` `peer_id`. A client uses the TXT
+  `node_url` rather than an address it resolves, because the node may sit
+  behind a reverse proxy whose certificate names that URL's host.
+- The node advertises only on the interface that holds the node URL's host,
+  and withdraws the advertisement (a goodbye with TTL 0) before it stops.
+- A client MUST refuse a discovered node whose `GET /settings` `peer_id`
+  differs from its TXT `peer_id`.
+- **A token never follows discovery.** Discovery is unauthenticated: any host
+  on the network can advertise any `peer_id` with its own `node_url`. A
+  client MUST NOT send a token to a URL it learned from discovery, whether
+  the token was typed or saved. A discovered node that refuses the tokenless
+  test gets its token only from a connect URI (§8.7.9), whose own `node_url`
+  replaces the discovered one. A client offers to take a pasted token only
+  for a node URL the user typed, and remembers how it learned each node URL
+  for as long as it keeps it.
 
 ## 8.8 Derived state and indexing
 
